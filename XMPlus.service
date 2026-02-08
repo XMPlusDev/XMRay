@@ -1,0 +1,23 @@
+[Unit]
+Description=XMPlus Service
+After=network.target nss-lookup.target
+Wants=network.target
+
+[Service]
+User=root
+Group=root
+Type=simple
+LimitAS=infinity
+LimitRSS=infinity
+LimitCORE=infinity
+LimitNPROC=10000
+LimitNOFILE=1000000
+WorkingDirectory=/usr/local/XMPlus/
+ExecStart=/usr/local/XMPlus/XMPlus --config /etc/XMPlus/config.yml
+Restart=on-failure
+RestartPreventExitStatus=23
+RestartSec=10s
+Environment="XRAY_VMESS_AEAD_FORCED=false"
+
+[Install]
+WantedBy=multi-user.target
