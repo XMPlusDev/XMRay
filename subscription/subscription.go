@@ -69,7 +69,7 @@ func (m *Manager) Add(subscriptions []*protocol.User, tag string) error {
 		return fmt.Errorf("failed to add subscriptions to tag %s: %w", tag, err)
 	}
 
-	log.Printf("Added %d subscriptions to tag %s", len(subscriptions), tag)
+	//log.Printf("Added %d subscriptions to tag %s", len(subscriptions), tag)
 	return nil
 }
 
@@ -84,7 +84,7 @@ func (m *Manager) Remove(emails []string, tag string) error {
 		return fmt.Errorf("failed to remove subscriptions from tag %s: %w", tag, err)
 	}
 
-	log.Printf("Removed %d subscriptions from tag %s", len(emails), tag)
+	//log.Printf("Removed %d subscriptions from tag %s", len(emails), tag)
 	return nil
 }
 

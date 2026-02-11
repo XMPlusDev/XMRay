@@ -138,6 +138,8 @@ func (c *Controller) Start() error {
 	)
 	if err != nil {
 		return err
+	}else{
+		log.Printf("%s Added %d subscriptions", c.LogPrefix, len(subscriptionInfo))
 	}
 	
 	// Add Limiter
@@ -324,6 +326,8 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		if err != nil {
 			log.Print(err)
 			return nil
+		}else{
+			log.Printf("%s Added %d subscriptions", c.LogPrefix, len(newSubscriptionInfo))
 		}
 		
 		err = c.nodeManager.AddInboundLimiter(
@@ -351,6 +355,8 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
 					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
 				}
+				
+				log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
 			}
 			
 			// Handle added subscriptions
@@ -359,9 +365,8 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				if err != nil {
 					log.Printf("%s Error adding subscriptions: %v", c.LogPrefix, err)
 				} else {
-					//log.Printf("%s Successfully added %d subscriptions", c.LogPrefix, len(added))
-					// Update Limiter for new subscriptions
-					log.Printf("%s Updating limiter for %d added subscription(s)", c.LogPrefix, len(added))
+					log.Printf("%s Added %d subscription(s)", c.LogPrefix, len(added))
+					// Update Limiter for added subscriptions 
 					if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &added); err != nil {
 						log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
 					}
@@ -370,11 +375,24 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			
 			// Handle modified subscriptions (properties changed but same ID)
 			if len(modified) > 0 {
-				log.Printf("%s Updating limiter for %d modified subscription(s)", c.LogPrefix, len(modified))
+				// Remove modified subscription
+				deletedEmail := subscription.FormatEmails(modified, c.Tag)
+				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
+					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
+				}
+				
+				// Add modified subscription
+				err := c.subManager.AddNewSubscription(&modified, c.nodeInfo, c.Tag)
+				if err != nil {
+					log.Printf("%s Error adding subscriptions: %v", c.LogPrefix, err)
+				}
+				
 				// Update Limiter for modified subscriptions without removing/re-adding them
 				if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &modified); err != nil {
 					log.Printf("%s Error updating limiter for modified subscriptions: %v", c.LogPrefix, err)
 				}
+				
+				log.Printf("%s Modified %d subscription(s)", c.LogPrefix, len(modified))
 			}
 		}
 	}

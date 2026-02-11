@@ -101,7 +101,6 @@ Nodes:
 {
   "encryption": "none",
   "decryption": "none",
-  "flow": "xtls-rprx-vision",
   "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
@@ -135,7 +134,6 @@ Nodes:
 {
   "encryption": "none",
   "decryption": "none",
-  "flow": "xtls-rprx-vision",
   "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
@@ -165,7 +163,6 @@ Nodes:
 {
   "encryption": "none",
   "decryption": "none",
-  "flow": "xtls-rprx-vision",
   "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
@@ -198,7 +195,6 @@ Nodes:
 {
   "encryption": "none",
   "decryption": "none",
-  "flow": "xtls-rprx-vision",
   "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
@@ -227,7 +223,6 @@ Nodes:
 {
   "encryption": "none",
   "decryption": "none",
-  "flow": "xtls-rprx-vision",
   "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",

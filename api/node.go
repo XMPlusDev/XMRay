@@ -461,8 +461,8 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 
 	if nodeInfo.NodeType == "vless" {
 		nodeInfo.Encryption = transportData.Get("encryption").MustString()
-		if _, flowExists := transportData.CheckGet("flow"); flowExists {
-			nodeInfo.Flow = transportData.Get("flow").MustString()
+		if flow, flowExists := transportData.CheckGet("flow"); flowExists {
+			nodeInfo.Flow = flow.MustString()
 		}
 	}
 
