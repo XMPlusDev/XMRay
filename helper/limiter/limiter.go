@@ -26,12 +26,17 @@ type SubscriptionInfo struct {
 	IPCount     int
 }
 
+type IPData struct {
+	UID int
+	Tag string
+}
+
 type InboundInfo struct {
 	Tag            		   string
 	NodeSpeedLimit 		   uint64
 	SubscriptionInfo   	   *sync.Map // Key: Email value: SubscriptionInfo
 	BucketHub      		   *sync.Map // key: Email, value: *rate.Limiter
-	SubscriptionOnlineIP   *sync.Map // Key: Email, value: {Key: IP, value: Id}
+	SubscriptionOnlineIP   *sync.Map // Key: Email, value: {Key: IP, value: IPData}
 	GlobalIPLimit  struct {
 		config         *RedisConfig
 		globalOnlineIP *marshaler.Marshaler
@@ -143,7 +148,7 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 					uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 					
 					// Check if user exists in Redis
-					_, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]int))
+					_, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]IPData))
 					if err != nil {
 						// User not in Redis, delete bucket
 						inboundInfo.BucketHub.Delete(email)
@@ -161,14 +166,12 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 				
 				// Get IP map from Redis
-				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]map[string]interface{})) // MODIFIED
+				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]IPData))
 				if err == nil {
-					ipMap := v.(*map[string]map[string]interface{}) // MODIFIED
+					ipMap := v.(*map[string]IPData)
 					for ip, data := range *ipMap {
-						uid := data["uid"].(int)
-						ipTag := data["tag"].(string)
-						if ipTag == tag {
-							onlineIP = append(onlineIP, api.OnlineIP{Id: uid, IP: ip})
+						if data.Tag == tag {
+							onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
 						}
 					}
 					// Note: Redis TTL will handle expiration automatically
@@ -195,10 +198,30 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
 				
 				ipMap.Range(func(key, value interface{}) bool {
-					data := value.(map[string]interface{}) // MODIFIED
-					uid := data["uid"].(int)
-					ipTag := data["tag"].(string)
 					ip := key.(string)
+					
+					// Safe type assertion with error handling
+					var uid int
+					var ipTag string
+					
+					if data, ok := value.(IPData); ok {
+						uid = data.UID
+						ipTag = data.Tag
+					} else {
+						// Fallback for old data format (map[string]interface{})
+						if dataMap, ok := value.(map[string]interface{}); ok {
+							if u, ok := dataMap["uid"].(int); ok {
+								uid = u
+							}
+							if t, ok := dataMap["tag"].(string); ok {
+								ipTag = t
+							}
+						} else {
+							// Skip this entry if type is unknown
+							newError("Unknown IP data type").AtWarning()
+							return true
+						}
+					}
 					
 					if ipTag == tag {
 						onlineIP = append(onlineIP, api.OnlineIP{Id: uid, IP: ip})
@@ -247,7 +270,7 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 		} else {
 			// Use local SubscriptionOnlineIP for IP limit checking
 			ipMap := new(sync.Map)
-			ipMap.Store(ip, map[string]interface{}{"uid": uid, "tag": tag}) // MODIFIED
+			ipMap.Store(ip, IPData{UID: uid, Tag: tag})
 			// If any device is online
 			uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
 			if v, ok := inboundInfo.SubscriptionOnlineIP.LoadOrStore(uniqueKey, ipMap); ok {
@@ -255,7 +278,7 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 				// Check if this IP already exists FIRST
 				if _, ipExists := ipMap.Load(ip); ipExists {
 					// IP exists - this is an existing connection
-					ipMap.Store(ip, map[string]interface{}{"uid": uid, "tag": tag})
+					ipMap.Store(ip, IPData{UID: uid, Tag: tag})
 				} else {	
 					// NEW IP - count existing IPs before adding
 					counter := 0
@@ -271,7 +294,7 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 					}
 					
 					// Within limit, add the new IP
-					ipMap.Store(ip, map[string]interface{}{"uid": uid, "tag": tag}) // MODIFIED
+					ipMap.Store(ip, IPData{UID: uid, Tag: tag})
 				}
 			}
 		}
@@ -304,23 +327,23 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
     // reformat email for unique key
     uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(ipLimit), 1)
 
-    v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]map[string]interface{})) // MODIFIED
+    v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]IPData))
     if err != nil {
         if _, ok := err.(*store.NotFound); ok {
             // If the email is a new device (first connection)
-            go pushIP(inboundInfo, uniqueKey, &map[string]map[string]interface{}{ip: {"uid": uid, "tag": tag}}) // MODIFIED
+            go pushIP(inboundInfo, uniqueKey, &map[string]IPData{ip: {UID: uid, Tag: tag}})
         } else {
             newError("cache service").Base(err).AtError()
         }
         return false
     }
 
-    ipMap := v.(*map[string]map[string]interface{})
+    ipMap := v.(*map[string]IPData)
 	
 	// Check if this IP already exists in cache
 	if _, ipExists := (*ipMap)[ip]; ipExists {
 		// This IP is already connected, update the tag and allow it
-		(*ipMap)[ip] = map[string]interface{}{"uid": uid, "tag": tag}
+		(*ipMap)[ip] = IPData{UID: uid, Tag: tag}
 		go pushIP(inboundInfo, uniqueKey, ipMap)
 		return false
 	}
@@ -332,14 +355,14 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
     }
 
     // Within limit, add the new IP
-    (*ipMap)[ip] = map[string]interface{}{"uid": uid, "tag": tag} // MODIFIED
+    (*ipMap)[ip] = IPData{UID: uid, Tag: tag}
     go pushIP(inboundInfo, uniqueKey, ipMap)
 
     return false
 }
 
 // push the ip to cache
-func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string]map[string]interface{}) { // MODIFIED
+func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string]IPData) {
     ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
     defer cancel()
 
