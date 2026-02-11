@@ -139,7 +139,7 @@ func (c *Controller) Start() error {
 	if err != nil {
 		return err
 	}else{
-		log.Printf("%s Added %d subscriptions", c.LogPrefix, len(subscriptionInfo))
+		log.Printf("%s Added %d subscriptions", c.LogPrefix, len(*subscriptionInfo))
 	}
 	
 	// Add Limiter
@@ -327,7 +327,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			log.Print(err)
 			return nil
 		}else{
-			log.Printf("%s Added %d subscriptions", c.LogPrefix, len(newSubscriptionInfo))
+			log.Printf("%s Added %d subscriptions", c.LogPrefix, len(*newSubscriptionInfo))
 		}
 		
 		err = c.nodeManager.AddInboundLimiter(
