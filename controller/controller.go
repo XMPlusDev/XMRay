@@ -139,7 +139,7 @@ func (c *Controller) Start() error {
 	if err != nil {
 		return err
 	}else{
-		log.Printf("%s Added %d subscriptions", c.LogPrefix, len(*subscriptionInfo))
+		log.Printf("%s Added %d subscriptions", c.logPrefix(), len(*subscriptionInfo))
 	}
 	
 	// Add Limiter
@@ -346,8 +346,8 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
 			
 			// Log what changed for debugging
-			log.Printf("%s Subscription Monitoring - Deleted: %d, Added: %d, Modified: %d", 
-				c.LogPrefix, len(deleted), len(added), len(modified))
+			//log.Printf("%s Subscriptions Monitoring - Deleted: %d, Added: %d, Modified: %d", 
+			//	c.LogPrefix, len(deleted), len(added), len(modified))
 			
 			// Handle deleted subscriptions
 			if len(deleted) > 0 {
