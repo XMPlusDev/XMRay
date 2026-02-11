@@ -138,7 +138,6 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				
 				// Extract subscription info to get the unique key
 				if v, ok := inboundInfo.SubscriptionInfo.Load(email); ok {
-					subscriptionInfo := v.(SubscriptionInfo)
 					
 					// Check if user exists in Redis
 					_, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, email, new(map[string]int))
@@ -153,7 +152,6 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 			// Get all users from SubscriptionInfo to check their IPs in Redis
 			inboundInfo.SubscriptionInfo.Range(func(key, value interface{}) bool {
 				email := key.(string)
-				subscriptionInfo := value.(SubscriptionInfo)
 				
 				// Get IP map from Redis
 				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, email, new(map[string]int))
