@@ -4,8 +4,6 @@ package limiter
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -141,10 +139,9 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				// Extract subscription info to get the unique key
 				if v, ok := inboundInfo.SubscriptionInfo.Load(email); ok {
 					subscriptionInfo := v.(SubscriptionInfo)
-					uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 					
 					// Check if user exists in Redis
-					_, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]int))
+					_, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, email, new(map[string]int))
 					if err != nil {
 						// User not in Redis, delete bucket
 						inboundInfo.BucketHub.Delete(email)
@@ -158,11 +155,8 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				email := key.(string)
 				subscriptionInfo := value.(SubscriptionInfo)
 				
-				// Reformat email for unique key (same as in globalLimit function)
-				uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
-				
 				// Get IP map from Redis
-				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]int))
+				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, email, new(map[string]int))
 				if err == nil {
 					ipMap := v.(*map[string]int)
 					for ip, uid := range *ipMap {
@@ -286,14 +280,11 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
 	defer cancel()
 
-	// reformat email for unique key
-	uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(ipLimit), 1)
-
-	v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]int))
+	v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, email, new(map[string]int))
 	if err != nil {
 		if _, ok := err.(*store.NotFound); ok {
 			// If the email is a new device (first connection)
-			go pushIP(inboundInfo, uniqueKey, &map[string]int{ip: uid})
+			go pushIP(inboundInfo, email, &map[string]int{ip: uid})
 		} else {
 			newError("cache service").Base(err).AtError()
 		}
@@ -316,17 +307,17 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
 
 	// Within limit, add the new IP
 	(*ipMap)[ip] = uid
-	go pushIP(inboundInfo, uniqueKey, ipMap)
+	go pushIP(inboundInfo, email, ipMap)
 
 	return false
 }
 
 // push the ip to cache
-func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string]int) {
+func pushIP(inboundInfo *InboundInfo, email string, ipMap *map[string]int) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
 	defer cancel()
 
-	if err := inboundInfo.GlobalIPLimit.globalOnlineIP.Set(ctx, uniqueKey, ipMap); err != nil {
+	if err := inboundInfo.GlobalIPLimit.globalOnlineIP.Set(ctx, email, ipMap); err != nil {
 		newError("Redis cache service").Base(err).AtError()
 	}
 }
