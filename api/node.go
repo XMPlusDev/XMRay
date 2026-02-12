@@ -154,15 +154,19 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 	
 	if xhttpSettings, ok := transportData.CheckGet("xhttpSettings"); ok {
 		nodeInfo.NetworkType = "xhttp"
+		
 		nodeInfo.XhttpSettings = &XhttpSettings{
 			Host: xhttpSettings.Get("host").MustString(),
 			Path: xhttpSettings.Get("path").MustString(),
 			Mode: xhttpSettings.Get("mode").MustString(),
-			NoSSEHeader:  xhttpSettings.Get("noSSEHeader").MustBool(),
-			ScMaxEachPostBytes: int32(xhttpSettings.Get("scMaxEachPostBytes").MustInt()),
-			ScMaxBufferedPosts: int64(xhttpSettings.Get("scMaxBufferedPosts").MustInt()),
-			ScStreamUpServerSecs: xhttpSettings.Get("scStreamUpServerSecs").MustString(),
-			XPaddingBytes: xhttpSettings.Get("xPaddingBytes").MustString(),
+		}
+		
+		if extraSettings, isOK := xhttpSettings.CheckGet("extra"); isOK {
+			nodeInfo.XhttpSettings.NoSSEHeader =  extraSettings.Get("noSSEHeader").MustBool()
+			nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(extraSettings.Get("scMaxEachPostBytes").MustInt())
+			nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(extraSettings.Get("scMaxBufferedPosts").MustInt())
+			nodeInfo.XhttpSettings.ScStreamUpServerSecs = extraSettings.Get("scStreamUpServerSecs").MustString()
+			nodeInfo.XhttpSettings.XPaddingBytes = extraSettings.Get("xPaddingBytes").MustString()
 		}
 	}
 
@@ -308,6 +312,10 @@ func (c *Client) parseSocketSettings(socketSettings *simplejson.Json, nodeInfo *
 	}
 	if val, err := socketSettings.Get("domainStrategy").String(); err == nil {
 		nodeInfo.SocketSettings.DomainStrategy = val
+	}
+	
+	if val, err := socketSettings.Get("tcpCongestion").String(); err == nil {
+		nodeInfo.SocketSettings.TcpCongestion = val
 	}
 
 	return nil

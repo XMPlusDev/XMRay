@@ -92,7 +92,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -125,7 +126,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -153,7 +155,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -185,7 +188,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -213,7 +217,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -233,13 +238,14 @@ Nodes:
     "host": "xmplus.dev",
     "mode": "packet-up",
     "path": "/",
-	"extra": {},
-    "custom_host": "xmplus.dev",
-    "noSSEHeader": false,
-    "scMaxBufferedPosts": 30,
-    "scMaxEachPostBytes": 1000000,
-    "scStreamUpServerSecs": "20-80",
-    "xPaddingBytes": "100-1000"
+    "extra": {
+      "noSSEHeader": false,
+      "scMaxBufferedPosts": 30,
+      "scMaxEachPostBytes": 1000000,
+      "scStreamUpServerSecs": "20-80",
+      "xPaddingBytes": "100-1000"
+    },
+    "custom_host": "xmplus.dev"
   },
   "socketSettings" : {
     "domainStrategy": "asis",
@@ -248,7 +254,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -285,7 +292,8 @@ Nodes:
     "tcpMaxSeg": 0,
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
   }
 }
 ```

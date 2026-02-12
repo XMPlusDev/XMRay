@@ -395,6 +395,10 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		if nodeInfo.SocketSettings.TcpMptcp {
 			sockoptConfig.TcpMptcp = nodeInfo.SocketSettings.TcpMptcp
 		}
+		
+		if nodeInfo.SocketSettings.TcpCongestion {
+			sockoptConfig.TCPCongestion = nodeInfo.SocketSettings.TcpCongestion
+		}
 			
 		streamSetting.SocketSettings = sockoptConfig
 	}	

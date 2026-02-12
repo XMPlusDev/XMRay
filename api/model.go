@@ -140,6 +140,7 @@ type SocketSettings struct {
 	TCPWindowClamp       int32
 	DomainStrategy       string
 	Enabled              bool
+	TcpCongestion        string
 }
 
 type XhttpSettings struct {
