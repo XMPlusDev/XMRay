@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"runtime"
@@ -68,7 +69,6 @@ func run() error {
 	restartChan := make(chan bool, 1)
 	lastTime := time.Now()
 	
-	// We need to keep the config watcher alive across restarts
 	config := getConfig()
 	
 	config.OnConfigChange(func(e fsnotify.Event) {
@@ -85,32 +85,31 @@ func run() error {
 		}
 	})
 	
-	// Main loop for handling restarts
-	for {
-		err := runManager(config, restartChan)
-		if err != nil {
-			// Check if it's a reload signal
-			if err.Error() == "reload" {
-				log.Print("Restarting with new configuration...")
-				
-				// Re-read the config file to get latest values
-				if err := config.ReadInConfig(); err != nil {
-					log.Errorf("Failed to reload config: %s", err)
-					// Don't exit, try to continue with old config
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				
-				runtime.GC()
-				continue
+	err := runManager(config, restartChan)
+	if err != nil {
+		// Check if it's a reload signal
+		if err.Error() == "reload" {
+			log.Print("Restarting application via system command...")
+			
+			// Execute terminal command "xmplus restart"
+			cmd := exec.Command("xmplus", "restart")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			
+			if err := cmd.Run(); err != nil {
+				log.Errorf("Failed to execute restart command: %s", err)
+				return err
 			}
-			// Fatal error
-			return err
+			
+			log.Print("Restart command executed, exiting current process...")
+			return nil
 		}
-		// Normal shutdown
-		log.Print("Shutting down gracefully")
-		return nil
+		// Fatal error
+		return err
 	}
+	// Normal shutdown
+	log.Print("Shutting down gracefully")
+	return nil
 }
 
 func runManager(config *viper.Viper, restartChan chan bool) (err error) {
