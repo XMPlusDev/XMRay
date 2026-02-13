@@ -152,6 +152,13 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
 	}
 	
+	if hysteriaSettings, ok := transportData.CheckGet("hysteriaSettings"); ok {
+		nodeInfo.NetworkType = "hysteria"
+		nodeInfo.HysteriaSettings = &HysteriaSettings{
+			Version: int32(hysteriaSettings.Get("version").MustInt()),
+		}
+	}
+	
 	if xhttpSettings, ok := transportData.CheckGet("xhttpSettings"); ok {
 		nodeInfo.NetworkType = "xhttp"
 		
@@ -660,6 +667,13 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 	
 	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
 		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
+	}
+	
+	if hysteriaSettings, ok := transportData.CheckGet("hysteriaSettings"); ok {
+		nodeInfo.NetworkType = "hysteria"
+		nodeInfo.HysteriaSettings = &HysteriaSettings{
+			Version: int32(hysteriaSettings.Get("version").MustInt()),
+		}
 	}
 	
 	if xhttpSettings, ok := transportData.CheckGet("xhttpSettings"); ok {

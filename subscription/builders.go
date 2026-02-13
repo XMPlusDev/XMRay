@@ -15,6 +15,7 @@ import (
 	"github.com/xtls/xray-core/proxy/trojan"
 	"github.com/xtls/xray-core/proxy/vless"
 	"github.com/xtls/xray-core/infra/conf"
+	hysteria "github.com/xtls/xray-core/proxy/hysteria/account"
 	
 	C "github.com/sagernet/sing/common"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
@@ -45,15 +46,13 @@ func BuildVlessUsers(subscriptionInfo *[]api.SubscriptionInfo, flow string, tag 
 	users := make([]*protocol.User, 0, len(*subscriptionInfo))
 	
 	for _, subscription := range *subscriptionInfo {
-		vlessAccount := &vless.Account{
-			Id:   subscription.Passwd,
-			Flow: flow,
-		}
-
 		users = append(users, &protocol.User{
 			Level:   0,
 			Email:   buildUserTag(tag, &subscription),
-			Account: serial.ToTypedMessage(vlessAccount),
+			Account: serial.ToTypedMessage(&vless.Account{
+			  Id:   subscription.Passwd,
+			  Flow: flow,
+		    }),
 		})
 	}
 
@@ -65,14 +64,12 @@ func BuildTrojanUsers(subscriptionInfo *[]api.SubscriptionInfo, tag string) []*p
 	users := make([]*protocol.User, 0, len(*subscriptionInfo))
 	
 	for _, subscription := range *subscriptionInfo {
-		trojanAccount := &trojan.Account{
-			Password: subscription.Passwd,
-		}
-
 		users = append(users, &protocol.User{
 			Level:   0,
 			Email:   buildUserTag(tag, &subscription),
-			Account: serial.ToTypedMessage(trojanAccount),
+			Account: serial.ToTypedMessage(&trojan.Account{
+			  Password: subscription.Passwd,
+		    }),
 		})
 	}
 
@@ -114,6 +111,23 @@ func BuildShadowsocksUsers(subscriptionInfo *[]api.SubscriptionInfo, method stri
 				}),
 			}) 
 		}
+	}
+
+	return users
+}
+
+// BuildHysteriaUsers builds Hysteria protocol users from subscription info
+func BuildHysteriaUsers(subscriptionInfo *[]api.SubscriptionInfo, tag string) []*protocol.User {
+	users := make([]*protocol.User, 0, len(*subscriptionInfo))
+	
+	for _, subscription := range *subscriptionInfo {
+		users = append(users, &protocol.User{
+			Level:   0,
+			Email:   buildUserTag(tag, &subscription),
+			Account: serial.ToTypedMessage(&hysteria.Account{
+			   Auth: subscription.Passwd,
+		    }),
+		})
 	}
 
 	return users

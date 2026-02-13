@@ -137,6 +137,11 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				Host:        "v1.mux.cool",
 				NetworkList: []string{"tcp", "udp"},
 			}
+		case "hysteria":	
+			protocol = "hysteria" 
+			proxySetting = &conf.HysteriaServerConfig{
+				Version: nodeInfo.HysteriaSettings.Version,
+			}
 		default:
 			return nil, fmt.Errorf("Unsupported Node Type: %v", nodeInfo.NodeType)	
 	}
@@ -298,6 +303,13 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				kcpSettings.Mtu = &nodeInfo.KcpSettings.Mtu
 			}
 			streamSetting.KCPSettings = kcpSettings	
+		case "hysteria":	
+			hysteriaSettings := &conf.HysteriaConfig{}
+			if nodeInfo.HysteriaSettings != nil {
+				hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
+			}
+			
+			streamSetting.HysteriaSettings = hysteriaSettings	
 	}
 	
 	streamSetting.Network = &transportProtocol	

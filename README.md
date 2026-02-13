@@ -298,6 +298,43 @@ Nodes:
 }
 ```
 
+####  HYSTERIA
+```
+{
+  "encryption": "none",
+  "decryption": "none",
+  "cipher": "aes-128-gcm",
+  "sniffing": true,
+  "listeningIP": "0.0.0.0",
+  "listeningPort": "443-443",
+  "sendThroughIP": "0.0.0.0",
+  "acceptProxyProtocol": false,
+  "hysteriaSettings": {
+	"version": 2
+  },
+  "maskSettings": {
+    "udp": [
+	  {
+	    "type": "salamander",
+	    "settings": {
+		  "password": "your-password-here"
+	    }
+      }
+    ]
+  },
+  "socketSettings" : {
+    "domainStrategy": "asis",
+    "tcpKeepAliveInterval": 0,
+    "tcpUserTimeout": 0,
+    "tcpMaxSeg": 0,
+    "tcpWindowClamp": 0,
+    "tcpKeepAliveIdle": 0,
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr"
+  }
+}
+```
+
 ### Security Settings
 
 #### TLS

@@ -185,6 +185,10 @@ type KcpSettings struct {
 	Mtu           uint32
 }
 
+type HysteriaSettings struct {
+	Version    int32
+}
+
 type NodeInfo struct {
 	NodeType        string
 	NodeID          int
@@ -215,6 +219,7 @@ type NodeInfo struct {
 	RelayNodeInfo   *RelayNodeInfo
 	BlockingRules   *BlockingRules
 	MaskSettings    *MaskSettings
+	HysteriaSettings *HysteriaSettings
 }
 
 type RelayNodeInfo struct {
@@ -239,6 +244,7 @@ type RelayNodeInfo struct {
 	RealitySettings *RealitySettings
 	TlsSettings     *TlsSettings
 	MaskSettings    *MaskSettings
+	HysteriaSettings *HysteriaSettings
 }
 
 type SubscriptionInfo struct {

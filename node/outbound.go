@@ -149,6 +149,17 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 					},
 				},
 			}
+		case "hysteria":	
+		    protocol = "hysteria" 
+			proxySetting = struct {
+				*conf.HysteriaClientConfig
+			}{
+				&conf.HysteriaClientConfig {
+					Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
+					Port:    uint16(nodeInfo.ListeningPort),
+					Version: nodeInfo.HysteriaSettings.Version,
+				},
+			}
 		default:
 			return nil, fmt.Errorf("Unsupported Relay Node Type: %s", nodeInfo.NodeType)		
 	}
@@ -229,6 +240,16 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			kcpSettings.Mtu = &nodeInfo.KcpSettings.Mtu
 		}
 		streamSetting.KCPSettings = kcpSettings	
+	
+	case "hysteria":	
+		hysteriaSettings := &conf.HysteriaConfig{}
+		// Check if hysteriaSettings is not nil
+		if nodeInfo.HysteriaSettings != nil {
+			hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
+			hysteriaSettings.Auth = subscription.Passwd
+		}
+			
+		streamSetting.HysteriaSettings = hysteriaSettings
 	}
 	
 	streamSetting.Network = &transportProtocol
