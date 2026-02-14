@@ -301,9 +301,6 @@ Nodes:
 ####  HYSTERIA
 ```
 {
-  "encryption": "none",
-  "decryption": "none",
-  "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",

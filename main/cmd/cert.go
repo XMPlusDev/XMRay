@@ -10,6 +10,7 @@ import (
 var (
 	certDomain   string
 	certEmail    string
+	configPath   string
 	
 	certCmd = &cobra.Command{
 		Use:   "cert",
@@ -22,7 +23,6 @@ using Let's Encrypt via HTTP challenge.`,
 		Use:   "obtain",
 		Short: "Obtain a new certificate",
 		Long: `Obtain a new SSL/TLS certificate for a domain using HTTP challenge.
-
 The certificate and key files will be saved in the cert/certificates directory.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := executeCertObtain(); err != nil {
@@ -35,7 +35,6 @@ The certificate and key files will be saved in the cert/certificates directory.`
 		Use:   "renew",
 		Short: "Renew an existing certificate",
 		Long: `Renew an existing SSL/TLS certificate for a domain.
-
 This will check if the certificate needs renewal and renew it if necessary.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := executeCertRenew(); err != nil {
@@ -49,12 +48,14 @@ func init() {
 	// Obtain command flags
 	certObtainCmd.Flags().StringVarP(&certDomain, "domain", "d", "", "Domain name for the certificate (required)")
 	certObtainCmd.Flags().StringVarP(&certEmail, "email", "e", "", "Email address for Let's Encrypt notifications (required)")
+	certObtainCmd.Flags().StringVarP(&configPath, "config", "c", "", "Custom config path (optional, defaults to XRAY_LOCATION_CONFIG env or /etc/XMPlus)")
 	certObtainCmd.MarkFlagRequired("domain")
 	certObtainCmd.MarkFlagRequired("email")
 	
 	// Renew command flags
 	certRenewCmd.Flags().StringVarP(&certDomain, "domain", "d", "", "Domain name for the certificate (required)")
 	certRenewCmd.Flags().StringVarP(&certEmail, "email", "e", "", "Email address for Let's Encrypt notifications (required)")
+	certRenewCmd.Flags().StringVarP(&configPath, "config", "c", "", "Custom config path (optional, defaults to XRAY_LOCATION_CONFIG env or /etc/XMPlus)")
 	certRenewCmd.MarkFlagRequired("domain")
 	certRenewCmd.MarkFlagRequired("email")
 	
@@ -71,8 +72,16 @@ func executeCertObtain() error {
 		Email:    certEmail,
 	}
 	
-	// Create Lego client
-	lego, err := cert.New(certConfig)
+	// Create Lego client with optional config path
+	var lego *cert.LegoCMD
+	var err error
+	
+	if configPath != "" {
+		lego, err = cert.New(certConfig, configPath)
+	} else {
+		lego, err = cert.New(certConfig)
+	}
+	
 	if err != nil {
 		return fmt.Errorf("failed to create certificate client: %w", err)
 	}
@@ -97,8 +106,16 @@ func executeCertRenew() error {
 		Email:    certEmail,
 	}
 	
-	// Create Lego client
-	lego, err := cert.New(certConfig)
+	// Create Lego client with optional config path
+	var lego *cert.LegoCMD
+	var err error
+	
+	if configPath != "" {
+		lego, err = cert.New(certConfig, configPath)
+	} else {
+		lego, err = cert.New(certConfig)
+	}
+	
 	if err != nil {
 		return fmt.Errorf("failed to create certificate client: %w", err)
 	}
