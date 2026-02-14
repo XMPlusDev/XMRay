@@ -152,7 +152,8 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
 	}
 	
-	if hysteriaSettings, hysteriaOK := transportData.CheckGet("hysteriaSettings"); hysteriaOK {
+	hysteriaSettings, hysteriaOK := transportData.CheckGet("hysteriaSettings")
+	if hysteriaOK {
 		nodeInfo.NetworkType = "hysteria"
 		nodeInfo.HysteriaSettings = &HysteriaSettings{
 			Version: int32(hysteriaSettings.Get("version").MustInt()),
