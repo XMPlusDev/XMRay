@@ -179,6 +179,8 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		return nil, fmt.Errorf("convert TransportProtocol failed: %s", err)
 	}
 	
+	streamSetting.Network = &transportProtocol
+	
 	switch networkType {
 	case "tcp", "raw":
 		tcpSetting := &conf.TCPConfig{
@@ -232,7 +234,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			grpcSettings.PermitWithoutStream = nodeInfo.GrpcSettings.PermitWithoutStream
 		}
 		streamSetting.GRPCSettings = grpcSettings
-	case "mkcp":
+	case "mkcp", "kcp":
 		kcpSettings := &conf.KCPConfig{}
 		// Check if KcpSettings is not nil
 		if nodeInfo.KcpSettings != nil {
@@ -241,7 +243,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		}
 		streamSetting.KCPSettings = kcpSettings	
 	
-	case "hysteria":	
+	case "hysteria", "hysteria2":	
 		hysteriaSettings := &conf.HysteriaConfig{}
 		// Check if hysteriaSettings is not nil
 		if nodeInfo.HysteriaSettings != nil {
@@ -252,17 +254,15 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		streamSetting.HysteriaSettings = hysteriaSettings
 	}
 	
-	streamSetting.Network = &transportProtocol
-	
 	// FIXED: Check nil BEFORE accessing Enabled
 	if nodeInfo.MaskSettings != nil && nodeInfo.MaskSettings.Enabled {
-		mask := conf.Mask{
+		udpMask := conf.Mask{
 			Type:     nodeInfo.MaskSettings.Type,
 			Settings: nodeInfo.MaskSettings.Settings,
 		}
 		
 		finalMaskSettings := &conf.FinalMask{
-			Udp: []conf.Mask{mask}, 
+			Udp: []conf.Mask{udpMask}, 
 		}
 		
 		streamSetting.FinalMask = finalMaskSettings

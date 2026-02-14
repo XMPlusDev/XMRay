@@ -160,6 +160,8 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		return nil, fmt.Errorf("convert TransportProtocol failed: %s", err)
 	}
 	
+	streamSetting.Network = &transportProtocol
+	
 	switch networkType {
 		case "tcp", "raw":
 			tcpSetting := &conf.TCPConfig{
@@ -170,7 +172,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				tcpSetting.HeaderConfig = nodeInfo.RawSettings.Header
 			}
 			streamSetting.TCPSettings = tcpSetting
-		case "websocket":
+		case "websocket", "ws":
 			wsSettings := &conf.WebSocketConfig{
 				AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
 			}
@@ -295,7 +297,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				grpcSettings.PermitWithoutStream = nodeInfo.GrpcSettings.PermitWithoutStream
 			}
 			streamSetting.GRPCSettings = grpcSettings
-		case "mkcp":
+		case "mkcp", "kcp":
 			kcpSettings := &conf.KCPConfig{}
 			// Check if KcpSettings is not nil
 			if nodeInfo.KcpSettings != nil {
@@ -303,26 +305,26 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				kcpSettings.Mtu = &nodeInfo.KcpSettings.Mtu
 			}
 			streamSetting.KCPSettings = kcpSettings	
-		case "hysteria":	
+		case "hysteria", "hysteria2":	
 			hysteriaSettings := &conf.HysteriaConfig{}
 			if nodeInfo.HysteriaSettings != nil {
 				hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
 			}
 			
-			streamSetting.HysteriaSettings = hysteriaSettings	
-	}
-	
-	streamSetting.Network = &transportProtocol	
+			streamSetting.HysteriaSettings = hysteriaSettings
+		default:
+			return nil, fmt.Errorf("Unsupported transport protocol: %v", networkType)	
+	}	
 	
 	// FIXED: Check nil BEFORE accessing Enabled
 	if nodeInfo.MaskSettings != nil && nodeInfo.MaskSettings.Enabled {
-		mask := conf.Mask{
+		udpMask := conf.Mask{
 			Type:     nodeInfo.MaskSettings.Type,
 			Settings: nodeInfo.MaskSettings.Settings,
 		}
 		
 		finalMaskSettings := &conf.FinalMask{
-			Udp: []conf.Mask{mask}, 
+			Udp: []conf.Mask{udpMask}, 
 		}
 		
 		streamSetting.FinalMask = finalMaskSettings
