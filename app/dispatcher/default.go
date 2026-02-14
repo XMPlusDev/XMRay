@@ -18,6 +18,8 @@ import (
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/dns"
+	"github.com/xtls/xray-core/proxy"
+	"github.com/xtls/xray-core/features/inbound"
 	"github.com/xtls/xray-core/features/outbound"
 	"github.com/xtls/xray-core/features/policy"
 	"github.com/xtls/xray-core/features/routing"
@@ -130,6 +132,7 @@ func (r *cachedReader) Interrupt() {
 // DefaultDispatcher is a default implementation of Dispatcher.
 type DefaultDispatcher struct {
 	ohm    outbound.Manager
+	ibm    inbound.Manager
 	router routing.Router
 	policy policy.Manager
 	stats  stats.Manager
@@ -140,11 +143,11 @@ type DefaultDispatcher struct {
 func init() {
 	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
 		d := new(DefaultDispatcher)
-		if err := core.RequireFeatures(ctx, func(om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dc dns.Client) error {
+		if err := core.RequireFeatures(ctx, func(om outbound.Manager, im inbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dc dns.Client) error {
 			core.OptionalFeatures(ctx, func(fdns dns.FakeDNSEngine) {
 				d.fdns = fdns
 			})
-			return d.Init(config.(*Config), om, router, pm, sm)
+			return d.Init(config.(*Config), om, im, router, pm, sm)
 		}); err != nil {
 			return nil, err
 		}
@@ -153,8 +156,9 @@ func init() {
 }
 
 // Init initializes DefaultDispatcher.
-func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager) error {
+func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, im inbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager) error {
 	d.ohm = om
+	d.ibm = im
 	d.router = router
 	d.policy = pm
 	d.stats = sm
@@ -174,6 +178,42 @@ func (*DefaultDispatcher) Start() error {
 
 // Close implements common.Closable.
 func (*DefaultDispatcher) Close() error { return nil }
+
+func (d *DefaultDispatcher) getInboundManager(ctx context.Context) inbound.Manager {
+	if d.ibm != nil {
+		return d.ibm
+	}
+	
+	if server, ok := ctx.Value(core.ServerKey{}).(*core.Instance); ok {
+		d.ibm = server.GetFeature(inbound.ManagerType()).(inbound.Manager)
+	}
+	
+	return d.ibm
+}
+
+func (d *DefaultDispatcher) isUserValidInInbound(ctx context.Context, user *protocol.MemoryUser, inboundTag string) bool {
+	if user == nil || len(user.Email) == 0 {
+		return false
+	}
+	
+	ibm := d.getInboundManager(ctx)
+	if ibm == nil {
+		return true
+	}
+	
+	handler, err := ibm.GetHandler(ctx, inboundTag)
+	if err != nil {
+		return false
+	}
+	
+	userManager, ok := handler.(proxy.UserManager)
+	if !ok {
+		return true
+	}
+	
+	return userManager.GetUser(user.Email) != nil
+}
+
 
 func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *transport.Link, error) {
 	opt := pipe.OptionsFromContext(ctx)
@@ -197,6 +237,19 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 	}
 
 	if user != nil && len(user.Email) > 0 {
+		if !d.isUserValidInInbound(ctx, user, sessionInbound.Tag) {
+			parts := strings.Split(user.Email, "|")
+			logger.Printf("Subscription (ID:%s) not found. Connection from %s terminated.", 
+				parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			
+			common.Close(outboundLink.Writer)
+			common.Close(inboundLink.Writer)
+			common.Interrupt(outboundLink.Reader)
+			common.Interrupt(inboundLink.Reader)
+			
+			return nil, nil, newError("Subscription email not found in inbound: ", user.Email)
+		}
+		
 		bucket, ok, reject := d.Limiter.GetLimiter(
 			sessionInbound.Tag, 
 			user.Email, 
@@ -265,6 +318,17 @@ func (d *DefaultDispatcher) WrapLink(ctx context.Context, policyManager policy.M
 	link.Reader = &buf.TimeoutWrapperReader{Reader: link.Reader}
 
 	if user != nil && len(user.Email) > 0 {
+		if !d.isUserValidInInbound(ctx, user, sessionInbound.Tag) {
+			parts := strings.Split(user.Email, "|")
+			logger.Printf("Subscription (ID:%s) not found. Connection from %s terminated.", 
+				parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			
+			common.Close(link.Writer)
+			common.Interrupt(link.Reader)
+			
+			return link, newError("Subscription email not found in inbound: ", user.Email)
+		}
+		
 		bucket, ok, reject := d.Limiter.GetLimiter(
 			sessionInbound.Tag, 
 			user.Email, 

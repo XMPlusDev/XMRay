@@ -64,7 +64,7 @@ func (c *Controller) RestartManager() error {
 		return fmt.Errorf("manager reference not set")
 	}
 	
-	log.Printf("%s Initiating full manager restart", c.logPrefix())
+	//log.Printf("%s Initiating full manager restart", c.logPrefix())
 	return c.manager.Restart()
 }
 
@@ -278,9 +278,9 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			if err != nil {
 				log.Print(err)
 			}
-			if c.nodeInfo.NodeType == "Shadowsocks-Plugin" {
-				err = c.nodeManager.RemoveTag(fmt.Sprintf("dokodemo-door_%s+1", c.Tag))
-			}
+		
+			// Remove Old limiter
+			err = c.nodeManager.DeleteInboundLimiter(oldTag)
 			if err != nil {
 				log.Print(err)
 				return nil
@@ -305,13 +305,6 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				return nil
 			}
 			//nodeInfoChanged = true
-		
-			// Remove Old limiter
-			err = c.nodeManager.DeleteInboundLimiter(oldTag)
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
 		} else {
 			nodeInfoChanged = false
 		}
@@ -326,8 +319,6 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		if err != nil {
 			log.Print(err)
 			return nil
-		}else{
-			log.Printf("%s Added %d subscriptions", c.LogPrefix, len(*newSubscriptionInfo))
 		}
 		
 		err = c.nodeManager.AddInboundLimiter(
@@ -354,9 +345,9 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				deletedEmail := subscription.FormatEmails(deleted, c.Tag)
 				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
 					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
+				} else {
+					log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
 				}
-				
-				log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
 			}
 			
 			// Handle added subscriptions

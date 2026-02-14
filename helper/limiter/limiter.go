@@ -306,9 +306,12 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 			
 			// If any device is online
 			uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
-			ipMap := new(sync.Map)
 			
-			if v, ok := inboundInfo.SubscriptionOnlineIP.LoadOrStore(uniqueKey, ipMap); ok {
+			// Try to load existing IP map for this subscription email
+			v, exists := inboundInfo.SubscriptionOnlineIP.Load(uniqueKey)
+			
+			if exists {
+				// subscription email already exists - update their IP map
 				ipMap := v.(*sync.Map)
 				
 				// Check if this IP already exists
@@ -347,7 +350,7 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 					})
 					
 					// Check if we're AT the limit already (before adding new IP)
-					if ipLimit > 0 && (counter >= ipLimit || ipLimit < ipCount) {
+					if ipLimit > 0 && (counter >= ipLimit || ipLimit <= ipCount) {
 						// Reject NEW IP only
 						return nil, false, true
 					}
@@ -355,6 +358,11 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 					// Within limit, add the new IP with IPData as a slice
 					ipMap.Store(ip, []IPData{newIPData})
 				}
+			} else {
+				// subscription email doesn't exist - create new IP map for this subscription email
+				ipMap := new(sync.Map)
+				ipMap.Store(ip, []IPData{newIPData})
+				inboundInfo.SubscriptionOnlineIP.Store(uniqueKey, ipMap)
 			}
 		}
 
@@ -389,7 +397,7 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
     v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
     if err != nil {
         if _, ok := err.(*store.NotFound); ok {
-            // If the email is a new device (first connection)
+            // If the subscription email is a new device (first connection)
             go pushIP(inboundInfo, uniqueKey, &map[string][]IPData{ip: {{UID: uid, Tag: tag, Email: email}}})
         } else {
             newError("cache service").Base(err).AtError()
