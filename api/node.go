@@ -158,7 +158,7 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 	}
 	
 	transportType, typeExist := transport.CheckGet("type")
-	if !typeExist || typeExist == "" {
+	if !typeExist || transportType == "" {
 		return fmt.Errorf("Missing node transportProtocol type.")
 	}
 	
@@ -678,7 +678,7 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 	}
 	
 	transportType, typeExist := transport.CheckGet("type")
-	if !typeExist || typeExist == "" {
+	if !typeExist || transportType == "" {
 		return fmt.Errorf("Missing node transportProtocol type.")
 	}
 	
