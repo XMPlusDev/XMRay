@@ -80,12 +80,15 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "rawSettings" : {
-    "header":{
-	  "type": "none"
-	}
+  "transportProtocol": {
+    "type": "raw",
+    "settings": {
+      "header": {
+        "type": "none"
+      }
+    }
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -108,18 +111,21 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "rawSettings" : {
-    "header":{
-	  "type": "http",
-	  "request": {
-	    "path": ["/"],
-		"headers": {
-		  "Host": ["www.baidu.com", "www.bing.com"]
-		}
-	  },
-	}
+  "transportProtocol": {
+    "type": "raw",
+    "settings": {
+      "header": {
+        "type": "http",
+        "request": {
+          "path": ["/"],
+          "headers": {
+            "Host": ["www.baidu.com", "www.bing.com"]
+          }
+        }
+      }
+    }
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -142,13 +148,16 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "wsSettings": {
-    "host": "xmplus.dev",
-    "path": "/",
-	"heartbeat": 60,
-    "custom_host": "xmplus.dev"
+  "transportProtocol": {
+    "type": "ws",
+    "settings": {
+      "host": "xmplus.dev",
+      "path": "/",
+      "heartbeat": 60,
+      "custom_host": "xmplus.dev"
+    }
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -172,16 +181,19 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "grpcSettings": {
-	"servicename": "xmplus",
-	"authority": "xmplus.dev",
-	"user_agent": "",
-	"initial_windows_size": 0,
-	"idle_timeout": 0,
-	"health_check_timeout": 0,
-	"permit_without_stream": false
+  "transportProtocol": {
+    "type": "grpc",
+    "settings": {
+      "servicename": "xmplus",
+      "authority": "xmplus.dev",
+      "user_agent": "",
+      "initial_windows_size": 0,
+      "idle_timeout": 0,
+      "health_check_timeout": 0,
+      "permit_without_stream": false
+    }
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -205,12 +217,15 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "httpupgradeSettings": {
-    "host": "xmplus.dev",
-    "path": "/",
-    "custom_host": "xmplus.dev"
+  "transportProtocol": {
+    "type": "httpupgrade",
+    "settings": {
+      "host": "xmplus.dev",
+      "path": "/",
+      "custom_host": "xmplus.dev"
+    }
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -234,20 +249,23 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "xhttpSettings": {
-    "host": "xmplus.dev",
-    "mode": "packet-up",
-    "path": "/",
-    "extra": {
-      "noSSEHeader": false,
-      "scMaxBufferedPosts": 30,
-      "scMaxEachPostBytes": 1000000,
-      "scStreamUpServerSecs": "20-80",
-      "xPaddingBytes": "100-1000"
-    },
-    "custom_host": "xmplus.dev"
+  "transportProtocol": {
+    "type": "xhttp",
+    "settings": {
+      "host": "xmplus.dev",
+      "mode": "packet-up",
+      "path": "/",
+      "extra": {
+        "noSSEHeader": false,
+        "scMaxBufferedPosts": 30,
+        "scMaxEachPostBytes": 1000000,
+        "scStreamUpServerSecs": "20-80",
+        "xPaddingBytes": "100-1000"
+      },
+      "custom_host": "xmplus.dev"
+    }
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -271,21 +289,24 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "kcpSettings": {
-    "congestion": false,
-	"mtu": 1350
+  "transportProtocol": {
+    "type": "kcp",
+    "settings": {
+      "congestion": false,
+      "mtu": 1350
+    }
   },
   "maskSettings": {
     "udp": [
-	  {
-	    "type": "mkcp-aes128gcm",
-	    "settings": {
-		  "password": "your-password-here"
-	    }
+      {
+        "type": "mkcp-aes128gcm",
+        "settings": {
+          "password": "your-password-here"
+        }
       }
     ]
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -306,20 +327,23 @@ Nodes:
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
   "acceptProxyProtocol": false,
-  "hysteriaSettings": {
-	"version": 2
+  "transportProtocol": {
+    "type": "hysteria",
+    "settings": {
+      "version": 2
+    }
   },
   "maskSettings": {
     "udp": [
-	  {
-	    "type": "salamander",
-	    "settings": {
-		  "password": "your-password-here"
-	    }
+      {
+        "type": "salamander",
+        "settings": {
+          "password": "your-password-here"
+        }
       }
     ]
   },
-  "socketSettings" : {
+  "socketSettings": {
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -339,20 +363,20 @@ Nodes:
 {
   "tlsSettings": {
     "allowInsecure": false,
-    "alpn": ["h2","http/1.1"],
+    "alpn": ["h2", "http/1.1"],
     "certMode": "http",
-	"certDomainName": "xmplus.dev",
-	"fragment": "1,40-60,30-50",
+    "certDomainName": "xmplus.dev",
+    "fragment": "1,40-60,30-50",
     "serverName": "google.com",
     "fingerprint": "chrome",
-    "curvePreferences": ["X25519","X25519MLKEM768"],
+    "curvePreferences": ["X25519", "X25519MLKEM768"],
     "rejectUnknownSni": false,
     "verifyPeerCertByName": "google.com",
     "pinnedPeerCertSha256": "",
     "disableSystemRoot": false,
-    "echServerKeys": "", 
+    "echServerKeys": "",
     "echConfigList": "",
-	"echForceQuery ": "half"
+    "echForceQuery": "half"
   }
 }
 ```
@@ -372,7 +396,7 @@ Nodes:
     "mldsa65Seed": "",
     "mldsa65Verify": "",
     "spiderX": "",
-	"minClientVer": "",
+    "minClientVer": "",
     "maxClientVer": "",
     "maxTimeDiff": 0
   }

@@ -27,8 +27,9 @@ type SubscriptionInfo struct {
 }
 
 type IPData struct {
-	UID int
-	Tag string
+	UID   int
+	Tag   string
+	Email string
 }
 
 type InboundInfo struct {
@@ -36,7 +37,7 @@ type InboundInfo struct {
 	NodeSpeedLimit 		   uint64
 	SubscriptionInfo   	   *sync.Map // Key: Email value: SubscriptionInfo
 	BucketHub      		   *sync.Map // key: Email, value: *rate.Limiter
-	SubscriptionOnlineIP   *sync.Map // Key: Email, value: {Key: IP, value: IPData}
+	SubscriptionOnlineIP   *sync.Map // Key: Email, value: {Key: IP, value: []IPData}
 	GlobalIPLimit  struct {
 		config         *RedisConfig
 		globalOnlineIP *marshaler.Marshaler
@@ -148,10 +149,31 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 					uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 					
 					// Check if user exists in Redis
-					_, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]IPData))
+					v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 					if err != nil {
 						// User not in Redis, delete bucket
 						inboundInfo.BucketHub.Delete(email)
+					} else {
+						// User exists in Redis - check if this specific email exists in any IPData
+						ipMap := v.(*map[string][]IPData)
+						emailFound := false
+						
+						for _, dataList := range *ipMap {
+							for _, data := range dataList {
+								if data.Email == email {
+									emailFound = true
+									break
+								}
+							}
+							if emailFound {
+								break
+							}
+						}
+						
+						// If email not found in any IPData, delete bucket
+						if !emailFound {
+							inboundInfo.BucketHub.Delete(email)
+						}
 					}
 				}
 				return true
@@ -166,16 +188,20 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 				
 				// Get IP map from Redis
-				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]IPData))
+				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 				if err == nil {
-					ipMap := v.(*map[string]IPData)
-					for ip, data := range *ipMap {
-						if data.Tag == tag {
-							onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
+					ipMap := v.(*map[string][]IPData)
+					for ip, dataList := range *ipMap {
+						// Iterate through all IPData entries for this IP
+						for _, data := range dataList {
+							if data.Tag == tag {
+								onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
+							}
 						}
 					}
 					// Note: Redis TTL will handle expiration automatically
 				}
+				
 				return true
 			})
 		} else {
@@ -185,7 +211,31 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				email := key.(string)
 				
 				uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
-				if _, exists := inboundInfo.SubscriptionOnlineIP.Load(uniqueKey); !exists {
+				if v, exists := inboundInfo.SubscriptionOnlineIP.Load(uniqueKey); exists {
+					// User exists in SubscriptionOnlineIP - check if this specific email exists in any IPData
+					ipMap := v.(*sync.Map)
+					emailFound := false
+					
+					ipMap.Range(func(ipKey, ipValue interface{}) bool {
+						// Handle []IPData type
+						if dataList, ok := ipValue.([]IPData); ok {
+							for _, data := range dataList {
+								if data.Email == email {
+									emailFound = true
+									return false // break the Range loop
+								}
+							}
+						}
+						
+						return true
+					})
+					
+					// If email not found in any IPData, delete bucket
+					if !emailFound {
+						inboundInfo.BucketHub.Delete(email)
+					}
+				} else {
+					// User not in SubscriptionOnlineIP, delete bucket
 					inboundInfo.BucketHub.Delete(email)
 				}
 				
@@ -200,32 +250,15 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				ipMap.Range(func(key, value interface{}) bool {
 					ip := key.(string)
 					
-					// Safe type assertion with error handling
-					var uid int
-					var ipTag string
-					
-					if data, ok := value.(IPData); ok {
-						uid = data.UID
-						ipTag = data.Tag
-					} else {
-						// Fallback for old data format (map[string]interface{})
-						if dataMap, ok := value.(map[string]interface{}); ok {
-							if u, ok := dataMap["uid"].(int); ok {
-								uid = u
+					// Handle []IPData type
+					if dataList, ok := value.([]IPData); ok {
+						for _, data := range dataList {
+							if data.Tag == tag {
+								onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
 							}
-							if t, ok := dataMap["tag"].(string); ok {
-								ipTag = t
-							}
-						} else {
-							// Skip this entry if type is unknown
-							newError("Unknown IP data type").AtWarning()
-							return true
 						}
 					}
 					
-					if ipTag == tag {
-						onlineIP = append(onlineIP, api.OnlineIP{Id: uid, IP: ip})
-					}
 					return true
 				})
 				inboundInfo.SubscriptionOnlineIP.Delete(uniqueKey) // Reset online device
@@ -269,18 +302,44 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 			}
 		} else {
 			// Use local SubscriptionOnlineIP for IP limit checking
-			ipMap := new(sync.Map)
-			ipMap.Store(ip, IPData{UID: uid, Tag: tag})
+			newIPData := IPData{UID: uid, Tag: tag, Email: email}
+			
 			// If any device is online
 			uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
+			ipMap := new(sync.Map)
+			
 			if v, ok := inboundInfo.SubscriptionOnlineIP.LoadOrStore(uniqueKey, ipMap); ok {
 				ipMap := v.(*sync.Map)
-				// Check if this IP already exists FIRST
-				if _, ipExists := ipMap.Load(ip); ipExists {
-					// IP exists - this is an existing connection
-					ipMap.Store(ip, IPData{UID: uid, Tag: tag})
-				} else {	
-					// NEW IP - count existing IPs before adding
+				
+				// Check if this IP already exists
+				if existingValue, ipExists := ipMap.Load(ip); ipExists {
+					// IP exists - check if we need to append or update
+					var dataList []IPData
+					
+					// Handle different data types
+					if list, ok := existingValue.([]IPData); ok {
+						dataList = list
+					}
+					
+					// Check if this exact UID and Tag combination exists
+					found := false
+					for i, data := range dataList {
+						if data.UID == uid && data.Tag == tag {
+							// Update existing entry
+							dataList[i] = newIPData
+							found = true
+							break
+						}
+					}
+					
+					// If UID or Tag is different, append new IPData
+					if !found {
+						dataList = append(dataList, newIPData)
+					}
+					
+					ipMap.Store(ip, dataList)
+				} else {
+					// NEW IP - count unique IPs before adding
 					counter := 0
 					ipMap.Range(func(key, value interface{}) bool {
 						counter++
@@ -293,8 +352,8 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 						return nil, false, true
 					}
 					
-					// Within limit, add the new IP
-					ipMap.Store(ip, IPData{UID: uid, Tag: tag})
+					// Within limit, add the new IP with IPData as a slice
+					ipMap.Store(ip, []IPData{newIPData})
 				}
 			}
 		}
@@ -327,23 +386,38 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
     // reformat email for unique key
     uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(ipLimit), 1)
 
-    v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string]IPData))
+    v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
     if err != nil {
         if _, ok := err.(*store.NotFound); ok {
             // If the email is a new device (first connection)
-            go pushIP(inboundInfo, uniqueKey, &map[string]IPData{ip: {UID: uid, Tag: tag}})
+            go pushIP(inboundInfo, uniqueKey, &map[string][]IPData{ip: {{UID: uid, Tag: tag, Email: email}}})
         } else {
             newError("cache service").Base(err).AtError()
         }
         return false
     }
 
-    ipMap := v.(*map[string]IPData)
+    ipMap := v.(*map[string][]IPData)
 	
 	// Check if this IP already exists in cache
-	if _, ipExists := (*ipMap)[ip]; ipExists {
-		// This IP is already connected, update the tag and allow it
-		(*ipMap)[ip] = IPData{UID: uid, Tag: tag}
+	if dataList, ipExists := (*ipMap)[ip]; ipExists {
+		// IP exists - check if this UID/Tag combination exists
+		found := false
+		for i, data := range dataList {
+			if data.UID == uid && data.Tag == tag {
+				// Update existing entry
+				dataList[i] = IPData{UID: uid, Tag: tag, Email: email}
+				found = true
+				break
+			}
+		}
+		
+		// If UID or Tag is different, append new IPData
+		if !found {
+			dataList = append(dataList, IPData{UID: uid, Tag: tag, Email: email})
+		}
+		
+		(*ipMap)[ip] = dataList
 		go pushIP(inboundInfo, uniqueKey, ipMap)
 		return false
 	}
@@ -354,15 +428,15 @@ func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLi
         return true
     }
 
-    // Within limit, add the new IP
-    (*ipMap)[ip] = IPData{UID: uid, Tag: tag}
+    // Within limit, add the new IP with IPData as a slice
+    (*ipMap)[ip] = []IPData{{UID: uid, Tag: tag, Email: email}}
     go pushIP(inboundInfo, uniqueKey, ipMap)
 
     return false
 }
 
 // push the ip to cache
-func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string]IPData) {
+func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string][]IPData) {
     ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
     defer cancel()
 
@@ -379,11 +453,9 @@ func determineRate(nodeLimit, SubscriptionLimit uint64) (limit uint64) {
 		if nodeLimit < 0 {
 			nodeLimit = 0 
 		}
-		
 		if SubscriptionLimit < 0 {
 			SubscriptionLimit = 0 
 		}
-		
 		if nodeLimit == 0 && SubscriptionLimit > 0 {
 			return SubscriptionLimit
 		} else if nodeLimit > 0 && SubscriptionLimit == 0 {

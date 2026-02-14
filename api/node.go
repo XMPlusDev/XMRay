@@ -82,6 +82,10 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	nodeInfo.ListeningIP = transportData.Get("listeningIP").MustString()
 	nodeInfo.ListeningPort = transportData.Get("listeningPort").MustString()
 	nodeInfo.SendThroughIP = transportData.Get("sendThroughIP").MustString()
+	
+	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
+		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
+	}
 
 	if nodeInfo.NodeType == "vless" {
 		nodeInfo.Decryption = transportData.Get("decryption").MustString()
@@ -148,32 +152,43 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 // parseNetworkSettings extracts network transport configuration
 func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *NodeInfo) error {
 	
-	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
-		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
+	transport, ok := transportData.CheckGet("transportProtocol")
+	if !ok {
+		return fmt.Errorf("Missing node transportProtocol configuration.")
 	}
 	
-	hysteriaSettings, hysteriaOK := transportData.CheckGet("hysteriaSettings")
-	if hysteriaOK {
-		nodeInfo.NetworkType = "hysteria"
+	transportType, typeExist := transport.CheckGet("type")
+	if !typeExist || typeExist == "" {
+		return fmt.Errorf("Missing node transportProtocol type.")
+	}
+	
+	nodeInfo.NetworkType = transportType.MustString()
+	
+	transportSettings, settingsExist := transport.CheckGet("settings")
+	if !settingsExist {
+		return fmt.Errorf("Missing node transportProtocol settings.")
+	}
+	
+	//hysteria
+	if nodeInfo.NetworkType == "hysteria" {
 		nodeInfo.HysteriaSettings = &HysteriaSettings{
-			Version: int32(hysteriaSettings.Get("version").MustInt()),
+			Version: int32(transportSettings.Get("version").MustInt()),
+		}
+		
+		if nodeInfo.NodeType == "hysteria" && nodeInfo.NetworkType != "hysteria" {
+			return fmt.Errorf("Hysteria only accept hysteria transportProtocol")
 		}
 	}
 	
-	if nodeInfo.NodeType == "hysteria" && !hysteriaOK {
-		return fmt.Errorf("Missing hysteriaSettings in configuration for hysteria protocol")
-	}
-	
-	if xhttpSettings, ok := transportData.CheckGet("xhttpSettings"); ok {
-		nodeInfo.NetworkType = "xhttp"
-		
+	//xhttp	
+	if nodeInfo.NetworkType == "xhttp" {
 		nodeInfo.XhttpSettings = &XhttpSettings{
-			Host: xhttpSettings.Get("host").MustString(),
-			Path: xhttpSettings.Get("path").MustString(),
-			Mode: xhttpSettings.Get("mode").MustString(),
+			Host: transportSettings.Get("host").MustString(),
+			Path: transportSettings.Get("path").MustString(),
+			Mode: transportSettings.Get("mode").MustString(),
 		}
-		
-		if extraSettings, isOK := xhttpSettings.CheckGet("extra"); isOK {
+			
+		if extraSettings, isOK := transportSettings.CheckGet("extra"); isOK {
 			nodeInfo.XhttpSettings.NoSSEHeader =  extraSettings.Get("noSSEHeader").MustBool()
 			nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(extraSettings.Get("scMaxEachPostBytes").MustInt())
 			nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(extraSettings.Get("scMaxBufferedPosts").MustInt())
@@ -181,16 +196,11 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 			nodeInfo.XhttpSettings.XPaddingBytes = extraSettings.Get("xPaddingBytes").MustString()
 		}
 	}
-
-	if rawSettings, ok := transportData.CheckGet("rawSettings"); ok {
-		nodeInfo.NetworkType = "raw"
+	
+	//raw
+	if nodeInfo.NetworkType == "raw" {
 		nodeInfo.RawSettings = &RawSettings{}
-
-		if _, proxyProtocolExists := transportData.CheckGet("acceptProxyProtocol"); proxyProtocolExists {
-			nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
-		}
-
-		if header, headerExist := rawSettings.CheckGet("header"); headerExist {
+		if header, headerExist := transportSettings.CheckGet("header"); headerExist {
 			headerBytes, err := header.MarshalJSON()
 			if err != nil {
 				return err
@@ -198,67 +208,56 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 			nodeInfo.RawSettings.Header = headerBytes
 		}
 	}
-
-	if kcpSettings, ok := transportData.CheckGet("kcpSettings"); ok {
-		nodeInfo.NetworkType = "kcp"
+	
+	//kcp
+	if nodeInfo.NetworkType == "kcp" {
 		nodeInfo.KcpSettings = &KcpSettings{}
-		
-		if congestionData, err := kcpSettings.Get("congestion").Bool(); err == nil {
+		if congestionData, err := transportSettings.Get("congestion").Bool(); err == nil {
 			nodeInfo.KcpSettings.Congestion = congestionData
 		}
-		
-		if MtuData, err := kcpSettings.Get("mtu").Int(); err == nil {
+		if MtuData, err := transportSettings.Get("mtu").Int(); err == nil {
 			nodeInfo.KcpSettings.Mtu = uint32(MtuData)
 		}
 	}
-
-	if grpcSettings, ok := transportData.CheckGet("grpcSettings"); ok {
-		nodeInfo.NetworkType = "grpc"
+	
+    //grpc
+	if nodeInfo.NetworkType == "grpc" {
 		nodeInfo.GrpcSettings = &GrpcSettings{
-			ServiceName: grpcSettings.Get("servicename").MustString(),
-			Authority: grpcSettings.Get("authority").MustString(),
+			ServiceName: transportSettings.Get("servicename").MustString(),
+			Authority: transportSettings.Get("authority").MustString(),
 		}
-		
-		if sizeData, err := grpcSettings.Get("initial_windows_size").Int(); err == nil {
+		if sizeData, err := transportSettings.Get("initial_windows_size").Int(); err == nil {
 			nodeInfo.GrpcSettings.WindowsSize = int32(sizeData)
 		}
-		
-		if agentData, err := grpcSettings.Get("user_agent").String(); err == nil {
+		if agentData, err := transportSettings.Get("user_agent").String(); err == nil {
 			nodeInfo.GrpcSettings.UserAgent = agentData
 		}
-		
-		if timeoutData, err := grpcSettings.Get("idle_timeout").Int(); err == nil {
+		if timeoutData, err := transportSettings.Get("idle_timeout").Int(); err == nil {
 			nodeInfo.GrpcSettings.IdleTimeout = int32(timeoutData)
 		}
-		
-		if checkData, err := grpcSettings.Get("health_check_timeout").Int(); err == nil {
+		if checkData, err := transportSettings.Get("health_check_timeout").Int(); err == nil {
 			nodeInfo.GrpcSettings.HealthCheckTimeout = int32(checkData)
 		}
-		
-		if permitData, err := grpcSettings.Get("permit_without_stream").Bool(); err == nil {
+		if permitData, err := transportSettings.Get("permit_without_stream").Bool(); err == nil {
 			nodeInfo.GrpcSettings.PermitWithoutStream = permitData
 		}
 	}
 
-	if wsSettings, ok := transportData.CheckGet("wsSettings"); ok {
-		nodeInfo.NetworkType = "ws"
+	//ws
+	if nodeInfo.NetworkType == "ws" {
 		nodeInfo.WsSettings = &WsSettings{
-			Host: wsSettings.Get("host").MustString(),
-			Path: wsSettings.Get("path").MustString(),
-			HeartbeatPeriod: uint32(wsSettings.Get("heartbeat").MustInt()),
+			Host: transportSettings.Get("host").MustString(),
+			Path: transportSettings.Get("path").MustString(),
+			HeartbeatPeriod: uint32(transportSettings.Get("heartbeat").MustInt()),
 		}
 	}
 
-	if httpupgradeSettings, ok := transportData.CheckGet("httpupgradeSettings"); ok {
-		nodeInfo.NetworkType = "httpupgrade"
+	//httpupgrade
+	if nodeInfo.NetworkType == "httpupgrade" {	
 		nodeInfo.HttpSettings = &HttpSettings{
-			Host: httpupgradeSettings.Get("host").MustString(),
-			Path: httpupgradeSettings.Get("path").MustString(),
+			Host: transportSettings.Get("host").MustString(),
+			Path: transportSettings.Get("path").MustString(),
 		}
-	}
-
-	if nodeInfo.NetworkType == "" {
-		return fmt.Errorf("unable to parse transport protocol")
 	}
 
 	return nil
@@ -478,6 +477,10 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	nodeInfo.ListeningPort = uint16(selectedPort)
 
 	nodeInfo.SendThroughIP = transportData.Get("sendThroughIP").MustString()
+	
+	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
+		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
+	}
 
 	if nodeInfo.NodeType == "vless" {
 		nodeInfo.Encryption = transportData.Get("encryption").MustString()
@@ -669,32 +672,47 @@ func (c *Client) parseRelayMaskSettings(maskSettings *simplejson.Json, nodeInfo 
 
 // parseRelayNetworkSettings extracts relay network configuration
 func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeInfo *RelayNodeInfo) error {
-	
-	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
-		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
+	transport, ok := transportData.CheckGet("transportProtocol")
+	if !ok {
+		return fmt.Errorf("Missing node transportProtocol configuration.")
 	}
 	
-	if hysteriaSettings, ok := transportData.CheckGet("hysteriaSettings"); ok {
-		nodeInfo.NetworkType = "hysteria"
+	transportType, typeExist := transport.CheckGet("type")
+	if !typeExist || typeExist == "" {
+		return fmt.Errorf("Missing node transportProtocol type.")
+	}
+	
+	nodeInfo.NetworkType = transportType.MustString()
+	
+	transportSettings, settingsExist := transport.CheckGet("settings")
+	if !settingsExist {
+		return fmt.Errorf("Missing node transportProtocol settings.")
+	}
+	
+	//hysteria
+	if nodeInfo.NetworkType == "hysteria" {
 		nodeInfo.HysteriaSettings = &HysteriaSettings{
-			Version: int32(hysteriaSettings.Get("version").MustInt()),
+			Version: int32(transportSettings.Get("version").MustInt()),
+		}
+		
+		if nodeInfo.NodeType == "hysteria" && nodeInfo.NetworkType != "hysteria" {
+			return fmt.Errorf("Hysteria only accept hysteria transportProtocol")
 		}
 	}
 	
-	if xhttpSettings, ok := transportData.CheckGet("xhttpSettings"); ok {
-		nodeInfo.NetworkType = "xhttp"
+	//xhttp	
+	if nodeInfo.NetworkType == "xhttp" {
 		nodeInfo.XhttpSettings = &XhttpSettings{
-			Host: xhttpSettings.Get("host").MustString(),
-			Path: xhttpSettings.Get("path").MustString(),
-			Mode: xhttpSettings.Get("mode").MustString(),
+			Host: transportSettings.Get("host").MustString(),
+			Path: transportSettings.Get("path").MustString(),
+			Mode: transportSettings.Get("mode").MustString(),
 		}
 	}
-
-	if rawSettings, ok := transportData.CheckGet("rawSettings"); ok {
-		nodeInfo.NetworkType = "raw"
+	
+	//raw
+	if nodeInfo.NetworkType == "raw" {
 		nodeInfo.RawSettings = &RawSettings{}
-		
-		if header, headerExist := rawSettings.CheckGet("header"); headerExist {
+		if header, headerExist := transportSettings.CheckGet("header"); headerExist {
 			headerBytes, err := header.MarshalJSON()
 			if err != nil {
 				return err
@@ -702,71 +720,56 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 			nodeInfo.RawSettings.Header = headerBytes
 		}
 	}
-
-	if kcpSettings, ok := transportData.CheckGet("kcpSettings"); ok {
-		nodeInfo.NetworkType = "kcp"
+	
+	//kcp
+	if nodeInfo.NetworkType == "kcp" {
 		nodeInfo.KcpSettings = &KcpSettings{}
-		
-		if congestionData, err := kcpSettings.Get("congestion").Bool(); err == nil {
+		if congestionData, err := transportSettings.Get("congestion").Bool(); err == nil {
 			nodeInfo.KcpSettings.Congestion = congestionData
 		}
-		
-		if MtuData, err := kcpSettings.Get("mtu").Int(); err == nil {
+		if MtuData, err := transportSettings.Get("mtu").Int(); err == nil {
 			nodeInfo.KcpSettings.Mtu = uint32(MtuData)
 		}
 	}
-
-	if grpcSettings, ok := transportData.CheckGet("grpcSettings"); ok {
-		nodeInfo.NetworkType = "grpc"
+	
+    //grpc
+	if nodeInfo.NetworkType == "grpc" {
 		nodeInfo.GrpcSettings = &GrpcSettings{
-			ServiceName: grpcSettings.Get("servicename").MustString(),
-			Authority:  grpcSettings.Get("authority").MustString(),
+			ServiceName: transportSettings.Get("servicename").MustString(),
+			Authority: transportSettings.Get("authority").MustString(),
 		}
-		
-		if sizeData, err := grpcSettings.Get("initial_windows_size").Int(); err == nil {
+		if sizeData, err := transportSettings.Get("initial_windows_size").Int(); err == nil {
 			nodeInfo.GrpcSettings.WindowsSize = int32(sizeData)
 		}
-		
-		if agentData, err := grpcSettings.Get("user_agent").String(); err == nil {
+		if agentData, err := transportSettings.Get("user_agent").String(); err == nil {
 			nodeInfo.GrpcSettings.UserAgent = agentData
 		}
-		
-		if timeoutData, err := grpcSettings.Get("idle_timeout").Int(); err == nil {
+		if timeoutData, err := transportSettings.Get("idle_timeout").Int(); err == nil {
 			nodeInfo.GrpcSettings.IdleTimeout = int32(timeoutData)
 		}
-		
-		if checkData, err := grpcSettings.Get("health_check_timeout").Int(); err == nil {
+		if checkData, err := transportSettings.Get("health_check_timeout").Int(); err == nil {
 			nodeInfo.GrpcSettings.HealthCheckTimeout = int32(checkData)
 		}
-		
-		if permitData, err := grpcSettings.Get("permit_without_stream").Bool(); err == nil {
+		if permitData, err := transportSettings.Get("permit_without_stream").Bool(); err == nil {
 			nodeInfo.GrpcSettings.PermitWithoutStream = permitData
 		}
 	}
 
-	if wsSettings, ok := transportData.CheckGet("wsSettings"); ok {
-		nodeInfo.NetworkType = "ws"
+	//ws
+	if nodeInfo.NetworkType == "ws" {
 		nodeInfo.WsSettings = &WsSettings{
-			Host: wsSettings.Get("host").MustString(),
-			Path:  wsSettings.Get("path").MustString(),
-			HeartbeatPeriod: uint32(wsSettings.Get("heartbeat").MustInt()),
+			Host: transportSettings.Get("host").MustString(),
+			Path: transportSettings.Get("path").MustString(),
+			HeartbeatPeriod: uint32(transportSettings.Get("heartbeat").MustInt()),
 		}
 	}
 
-	if httpupgradeSettings, ok := transportData.CheckGet("httpupgradeSettings"); ok {
-		nodeInfo.NetworkType = "httpupgrade"
+	//httpupgrade
+	if nodeInfo.NetworkType == "httpupgrade" {	
 		nodeInfo.HttpSettings = &HttpSettings{
-			Host: httpupgradeSettings.Get("host").MustString(),
-			Path: httpupgradeSettings.Get("path").MustString(),
+			Host: transportSettings.Get("host").MustString(),
+			Path: transportSettings.Get("path").MustString(),
 		}
-	}
-
-	if nodeInfo.NetworkType == "" {
-		return fmt.Errorf("unable to parse relay transport protocol")
-	}
-
-	if nodeInfo.NodeType == "shadowsocks" && nodeInfo.NetworkType != "raw" {
-		nodeInfo.NetworkType = "Shadowsocks-Plugin"
 	}
 
 	return nil
