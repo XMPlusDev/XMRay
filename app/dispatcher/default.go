@@ -184,7 +184,8 @@ func (d *DefaultDispatcher) getInboundManager(ctx context.Context) inbound.Manag
 		return d.ibm
 	}
 	
-	if server, ok := ctx.Value(core.ServerKey{}).(*core.Instance); ok {
+	server := core.FromContext(ctx)
+	if server != nil {
 		d.ibm = server.GetFeature(inbound.ManagerType()).(inbound.Manager)
 	}
 	
@@ -211,7 +212,7 @@ func (d *DefaultDispatcher) isUserValidInInbound(ctx context.Context, user *prot
 		return true
 	}
 	
-	return userManager.GetUser(user.Email) != nil
+	return userManager.GetUser(ctx, user.Email) != nil
 }
 
 
