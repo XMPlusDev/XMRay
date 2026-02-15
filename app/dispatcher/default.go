@@ -132,22 +132,25 @@ func (r *cachedReader) Interrupt() {
 // DefaultDispatcher is a default implementation of Dispatcher.
 type DefaultDispatcher struct {
 	ohm    outbound.Manager
-	ibm    inbound.Manager
 	router routing.Router
 	policy policy.Manager
 	stats  stats.Manager
 	fdns   dns.FakeDNSEngine
+	server  *core.Instance
+	ibm     inbound.Manager
 	Limiter *limiter.Limiter
 }
 
 func init() {
 	common.Must(common.RegisterConfig((*Config)(nil), func(ctx context.Context, config interface{}) (interface{}, error) {
 		d := new(DefaultDispatcher)
-		if err := core.RequireFeatures(ctx, func(om outbound.Manager, im inbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dc dns.Client) error {
+		server := core.MustFromContext(ctx)
+		
+		if err := core.RequireFeatures(ctx, func(om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, dc dns.Client) error {
 			core.OptionalFeatures(ctx, func(fdns dns.FakeDNSEngine) {
 				d.fdns = fdns
 			})
-			return d.Init(config.(*Config), om, im, router, pm, sm)
+			return d.Init(config.(*Config), om, router, pm, sm, server)
 		}); err != nil {
 			return nil, err
 		}
@@ -156,12 +159,13 @@ func init() {
 }
 
 // Init initializes DefaultDispatcher.
-func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, im inbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager) error {
+func (d *DefaultDispatcher) Init(config *Config, om outbound.Manager, router routing.Router, pm policy.Manager, sm stats.Manager, server *core.Instance) error {
 	d.ohm = om
-	d.ibm = im
 	d.router = router
 	d.policy = pm
 	d.stats = sm
+	d.server = server
+	d.ibm = server.GetFeature(inbound.ManagerType()).(inbound.Manager)
 	d.Limiter = limiter.New()
 	return nil
 }
@@ -179,30 +183,16 @@ func (*DefaultDispatcher) Start() error {
 // Close implements common.Closable.
 func (*DefaultDispatcher) Close() error { return nil }
 
-func (d *DefaultDispatcher) getInboundManager(ctx context.Context) inbound.Manager {
-	if d.ibm != nil {
-		return d.ibm
-	}
-	
-	server := core.FromContext(ctx)
-	if server != nil {
-		d.ibm = server.GetFeature(inbound.ManagerType()).(inbound.Manager)
-	}
-	
-	return d.ibm
-}
-
 func (d *DefaultDispatcher) isUserValidInInbound(ctx context.Context, user *protocol.MemoryUser, inboundTag string) bool {
 	if user == nil || len(user.Email) == 0 {
 		return false
 	}
 	
-	ibm := d.getInboundManager(ctx)
-	if ibm == nil {
+	if d.ibm == nil {
 		return true
 	}
 	
-	handler, err := ibm.GetHandler(ctx, inboundTag)
+	handler, err := d.ibm.GetHandler(ctx, inboundTag)
 	if err != nil {
 		return false
 	}

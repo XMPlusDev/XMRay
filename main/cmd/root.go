@@ -48,7 +48,6 @@ func getConfig() *viper.Viper {
 		// Set ASSET Path and Config Path for XMPlus
 		os.Setenv("XRAY_LOCATION_ASSET", configPath)
 		os.Setenv("XRAY_LOCATION_CONFIG", configPath)
-		//os.Setenv("XRAY_MPH_PATH", "")
 	} else {
 		// Set default config path
 		config.SetConfigName("config")
@@ -89,7 +88,6 @@ func run() error {
 	if err != nil {
 		// Check if it's a reload signal
 		if err.Error() == "reload" {
-			log.Print("Restarting application via system command...")
 			
 			// Execute terminal command "xmplus restart"
 			cmd := exec.Command("xmplus", "restart")
@@ -101,25 +99,16 @@ func run() error {
 				return err
 			}
 			
-			log.Print("Restart command executed, exiting current process...")
 			return nil
 		}
 		// Fatal error
 		return err
 	}
-	// Normal shutdown
-	log.Print("Shutting down gracefully")
+	
 	return nil
 }
 
-func runManager(config *viper.Viper, restartChan chan bool) (err error) {
-	// Recover from panics to prevent crashes during reload
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("XMPlus Recovered")
-		}
-	}()
-	
+func runManager(config *viper.Viper, restartChan chan bool) error {
 	// Validate config is not nil
 	if config == nil {
 		return fmt.Errorf("config is nil")
@@ -152,7 +141,6 @@ func runManager(config *viper.Viper, restartChan chan bool) (err error) {
 	}
 	
 	defer func() {
-		log.Print("Shutting down manager...")
 		if m != nil {
 			// Recover from potential panic in Close()
 			func() {
@@ -169,8 +157,6 @@ func runManager(config *viper.Viper, restartChan chan bool) (err error) {
 	// Explicitly triggering GC to remove garbage from config loading.
 	runtime.GC()
 	
-	log.Print("XMPlus server started successfully")
-	
 	// Running backend
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
@@ -183,7 +169,6 @@ func runManager(config *viper.Viper, restartChan chan bool) (err error) {
 		return nil
 	case <-restartChan:
 		// Config changed, return to restart
-		log.Print("Configuration change detected, reloading...")
 		return fmt.Errorf("reload")
 	}
 }

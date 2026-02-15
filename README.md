@@ -14,7 +14,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/
 ### /etc/XMPlus/config.yml
 ```
 Log:
-  Level: warning # Log level: none, error, warning, info, debug 
+  Level: none # Log level: none, error, warning, info, debug 
   AccessPath: # /etc/XMPlus/access.Log
   ErrorPath: # /etc/XMPlus/error.log
   DNSLog: false  # / true or false Whether to enable DNS query log, for example: DOH//doh.server got answer: domain.com -> [ip1, ip2] 2.333ms 
@@ -24,8 +24,8 @@ RouteConfigPath: # /etc/XMPlus/route.json   #https://xtls.github.io/config/routi
 InboundConfigPath: # /etc/XMPlus/inbound.json  #https://xtls.github.io/config/inbound.html#inboundobject
 OutboundConfigPath: # /etc/XMPlus/outbound.json   #https://xtls.github.io/config/outbound.html
 ConnectionConfig:
-  Handshake: 4 
-  ConnIdle: 60 
+  Handshake: 8 
+  ConnIdle: 120 
   UplinkOnly: 0 
   DownlinkOnly: 0 
   BufferSize: 64
