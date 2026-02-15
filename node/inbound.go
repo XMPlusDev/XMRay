@@ -185,7 +185,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			httpupgradeSettings := &conf.HttpUpgradeConfig{}
 			// Check if HttpSettings is not nil
 			if nodeInfo.HttpSettings != nil {
-				ttpupgradeSettings.AcceptProxyProtocol = nodeInfo.HttpSettings.AcceptProxyProtocol
+				httpupgradeSettings.AcceptProxyProtocol = nodeInfo.HttpSettings.AcceptProxyProtocol
 				httpupgradeSettings.Host = nodeInfo.HttpSettings.Host
 				httpupgradeSettings.Path = nodeInfo.HttpSettings.Path
 			}

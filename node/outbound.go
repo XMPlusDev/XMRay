@@ -274,7 +274,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			Fingerprint: nodeInfo.TlsSettings.FingerPrint,
 			VerifyPeerCertByName: nodeInfo.TlsSettings.VerifyPeerCertByName,
 			ECHConfigList: nodeInfo.TlsSettings.ECHConfigList,
-			ECHForceQuery: nodeInfo.TlsSettings.ECHForceQuery,
 			PinnedPeerCertSha256: nodeInfo.TlsSettings.PinnedPeerCertSha256,
 		}
 		streamSetting.TLSSettings = tlsSettings	
