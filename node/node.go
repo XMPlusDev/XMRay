@@ -195,8 +195,6 @@ func (m *Manager) RemoveTag(tag string) error {
 	if err := m.removeOutbound(tag); err != nil {
 		return fmt.Errorf("failed to remove outbound: %w", err)
 	}
-
-	log.Printf("Removed tag %s", tag)
 	
 	defaultRuleTag := fmt.Sprintf("%s_default", tag)
 	if errr := m.removeRouterRule(defaultRuleTag); errr != nil {
