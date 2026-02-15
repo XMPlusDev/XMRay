@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -181,8 +180,7 @@ func (m *Manager) AddTag(nodeInfo *api.NodeInfo, tag string, config *Config) err
 			return err
 		}
 	}
-
-	//log.Printf("Added inbound tag %s for node type %s", tag, nodeInfo.NodeType)
+	
 	return nil
 }
 
