@@ -230,15 +230,19 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 	if user != nil && len(user.Email) > 0 {
 		if !d.isUserValidInInbound(ctx, user, sessionInbound.Tag) {
 			parts := strings.Split(user.Email, "|")
-			logger.Printf("Subscription (ID:%s) not found. Connection from %s terminated.", 
-				parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			logger.Printf("Subscription (ID:%s) deleted. Closing connection.", 
+				parts[len(parts)-1])
+			
+			if sessionInbound.Conn != nil {
+				sessionInbound.Conn.Close() 
+			}
 			
 			common.Close(outboundLink.Writer)
 			common.Close(inboundLink.Writer)
 			common.Interrupt(outboundLink.Reader)
 			common.Interrupt(inboundLink.Reader)
 			
-			return nil, nil, newError("Subscription email not found in inbound: ", user.Email)
+			return nil, nil, newError("Closing connection for: ", user.Email)
 		}
 		
 		bucket, ok, reject := d.Limiter.GetLimiter(
@@ -250,7 +254,9 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 		
 		if reject {
 			parts := strings.Split(user.Email, "|")
-			logger.Printf("Subscription (ID:%s) ip limit exceeded. Connection from %s aborted.", parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			logger.Printf("Subscription (ID:%s) ip limit exceeded. Connection from %s aborted.", 
+				parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			  
 			common.Close(outboundLink.Writer)
 			common.Close(inboundLink.Writer)
 			common.Interrupt(outboundLink.Reader)
@@ -311,13 +317,17 @@ func (d *DefaultDispatcher) WrapLink(ctx context.Context, policyManager policy.M
 	if user != nil && len(user.Email) > 0 {
 		if !d.isUserValidInInbound(ctx, user, sessionInbound.Tag) {
 			parts := strings.Split(user.Email, "|")
-			logger.Printf("Subscription (ID:%s) not found. Connection from %s terminated.", 
-				parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			logger.Printf("Subscription (ID:%s) deleted. Closing connection.", 
+				parts[len(parts)-1])
+			
+			if sessionInbound.Conn != nil {
+				sessionInbound.Conn.Close() 
+			}
 			
 			common.Close(link.Writer)
 			common.Interrupt(link.Reader)
 			
-			return link, newError("Subscription email not found in inbound: ", user.Email)
+			return link, newError("Closing connection for: ", user.Email)
 		}
 		
 		bucket, ok, reject := d.Limiter.GetLimiter(
@@ -329,7 +339,9 @@ func (d *DefaultDispatcher) WrapLink(ctx context.Context, policyManager policy.M
 		
 		if reject {
 			parts := strings.Split(user.Email, "|")
-			logger.Printf("Subscription (ID:%s) ip limit exceeded. Connection from %s aborted.", parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			logger.Printf("Subscription (ID:%s) ip limit exceeded. Connection from %s aborted.", 
+				parts[len(parts)-1], maskIP(sessionInbound.Source.Address.IP().String(), 2))
+			  
 			common.Close(link.Writer)
 			common.Interrupt(link.Reader)
 			return link, newError("Subscription IP Limit Exceeded for: ", user.Email) 
