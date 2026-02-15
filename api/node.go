@@ -82,10 +82,6 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	nodeInfo.ListeningIP = transportData.Get("listeningIP").MustString()
 	nodeInfo.ListeningPort = transportData.Get("listeningPort").MustString()
 	nodeInfo.SendThroughIP = transportData.Get("sendThroughIP").MustString()
-	
-	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
-		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
-	}
 
 	if nodeInfo.NodeType == "vless" {
 		nodeInfo.Decryption = transportData.Get("decryption").MustString()
@@ -203,6 +199,9 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 	//raw
 	if nodeInfo.NetworkType == "raw" {
 		nodeInfo.RawSettings = &RawSettings{}
+		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+			nodeInfo.RawSettings.AcceptProxyProtocol = acceptProxy.MustBool()
+		}
 		if header, headerExist := transportSettings.CheckGet("header"); headerExist {
 			headerBytes, err := header.MarshalJSON()
 			if err != nil {
@@ -253,6 +252,9 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 			Path: transportSettings.Get("path").MustString(),
 			HeartbeatPeriod: uint32(transportSettings.Get("heartbeat").MustInt()),
 		}
+		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+			nodeInfo.WsSettings.AcceptProxyProtocol = acceptProxy.MustBool()
+		}
 	}
 
 	//httpupgrade
@@ -260,6 +262,9 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 		nodeInfo.HttpSettings = &HttpSettings{
 			Host: transportSettings.Get("host").MustString(),
 			Path: transportSettings.Get("path").MustString(),
+		}
+		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+			nodeInfo.HttpSettings.AcceptProxyProtocol = acceptProxy.MustBool()
 		}
 	}
 
@@ -305,6 +310,10 @@ func (c *Client) parseMaskSettings(maskSettings *simplejson.Json, nodeInfo *Node
 func (c *Client) parseSocketSettings(socketSettings *simplejson.Json, nodeInfo *NodeInfo) error {
 	nodeInfo.SocketSettings = &SocketSettings{}
 	nodeInfo.SocketSettings.Enabled = true
+	
+	if acceptProxy, protocolExists := socketSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+		nodeInfo.SocketSettings.AcceptProxyProtocol = acceptProxy.MustBool()
+	}
 
 	if val, err := socketSettings.Get("tCPKeepAliveInterval").Int(); err == nil {
 		nodeInfo.SocketSettings.TCPKeepAliveInterval = int32(val)
@@ -480,10 +489,6 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	nodeInfo.ListeningPort = uint16(selectedPort)
 
 	nodeInfo.SendThroughIP = transportData.Get("sendThroughIP").MustString()
-	
-	if _, protocolExists := transportData.CheckGet("acceptProxyProtocol"); protocolExists {
-		nodeInfo.AcceptProxyProtocol = transportData.Get("acceptProxyProtocol").MustBool()
-	}
 
 	if nodeInfo.NodeType == "vless" {
 		nodeInfo.Encryption = transportData.Get("encryption").MustString()
@@ -715,6 +720,9 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 	//raw
 	if nodeInfo.NetworkType == "raw" {
 		nodeInfo.RawSettings = &RawSettings{}
+		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+			nodeInfo.RawSettings.AcceptProxyProtocol = acceptProxy.MustBool()
+		}
 		if header, headerExist := transportSettings.CheckGet("header"); headerExist {
 			headerBytes, err := header.MarshalJSON()
 			if err != nil {
@@ -765,6 +773,9 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 			Path: transportSettings.Get("path").MustString(),
 			HeartbeatPeriod: uint32(transportSettings.Get("heartbeat").MustInt()),
 		}
+		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+			nodeInfo.WsSettings.AcceptProxyProtocol = acceptProxy.MustBool()
+		}
 	}
 
 	//httpupgrade
@@ -772,6 +783,9 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 		nodeInfo.HttpSettings = &HttpSettings{
 			Host: transportSettings.Get("host").MustString(),
 			Path: transportSettings.Get("path").MustString(),
+		}
+		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
+			nodeInfo.HttpSettings.AcceptProxyProtocol = acceptProxy.MustBool()
 		}
 	}
 
@@ -808,9 +822,6 @@ func (c *Client) parseRelaySecuritySettings(securityData *simplejson.Json, nodeI
 		}
 		if peerCert, err := tlsSettings.Get("pinnedPeerCertSha256").String(); err == nil {
 			nodeInfo.TlsSettings.PinnedPeerCertSha256 = peerCert
-		}
-		if echForceQuery, err := tlsSettings.Get("echForceQuery ").String(); err == nil {
-			nodeInfo.TlsSettings.ECHForceQuery = echForceQuery 
 		}
 	}
 

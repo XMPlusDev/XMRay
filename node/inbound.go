@@ -164,31 +164,28 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	
 	switch networkType {
 		case "tcp", "raw":
-			tcpSetting := &conf.TCPConfig{
-				AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
-			}
+			tcpSetting := &conf.TCPConfig{}
 			// Check if RawSettings is not nil before accessing Header
 			if nodeInfo.RawSettings != nil {
 				tcpSetting.HeaderConfig = nodeInfo.RawSettings.Header
+				tcpSetting.AcceptProxyProtocol = nodeInfo.RawSettings.AcceptProxyProtocol
 			}
 			streamSetting.TCPSettings = tcpSetting
 		case "websocket", "ws":
-			wsSettings := &conf.WebSocketConfig{
-				AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
-			}
+			wsSettings := &conf.WebSocketConfig{}
 			// Check if WsSettings is not nil
 			if nodeInfo.WsSettings != nil {
 				wsSettings.Path = nodeInfo.WsSettings.Path
 				wsSettings.Host = nodeInfo.WsSettings.Host
 				wsSettings.HeartbeatPeriod = nodeInfo.WsSettings.HeartbeatPeriod
+				wsSettings.AcceptProxyProtocol = nodeInfo.WsSettings.AcceptProxyProtocol
 			}
 			streamSetting.WSSettings = wsSettings	
 		case "httpupgrade":
-			httpupgradeSettings := &conf.HttpUpgradeConfig{
-				AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
-			}
+			httpupgradeSettings := &conf.HttpUpgradeConfig{}
 			// Check if HttpSettings is not nil
 			if nodeInfo.HttpSettings != nil {
+				ttpupgradeSettings.AcceptProxyProtocol = nodeInfo.HttpSettings.AcceptProxyProtocol
 				httpupgradeSettings.Host = nodeInfo.HttpSettings.Host
 				httpupgradeSettings.Path = nodeInfo.HttpSettings.Path
 			}
@@ -385,8 +382,12 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	// Check if SocketSettings is not nil
 	if nodeInfo.SocketSettings != nil && nodeInfo.SocketSettings.Enabled {
 		sockoptConfig := &conf.SocketConfig{}
-		if networkType != "tcp" && networkType != "ws" && nodeInfo.AcceptProxyProtocol {
-			sockoptConfig.AcceptProxyProtocol = nodeInfo.AcceptProxyProtocol
+		
+		if  nodeInfo.SocketSettings.AcceptProxyProtocol {
+			switch 	networkType{
+				case "kcp", "xhttp", "grpc":
+					sockoptConfig.AcceptProxyProtocol = nodeInfo.SocketSettings.AcceptProxyProtocol
+			}
 		}
 		if nodeInfo.SocketSettings.DomainStrategy != "" {
 			sockoptConfig.DomainStrategy = nodeInfo.SocketSettings.DomainStrategy

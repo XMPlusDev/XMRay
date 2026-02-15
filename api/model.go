@@ -100,8 +100,7 @@ type TlsSettings struct {
 	AllowInsecure      bool
 
 	ECHServerKeys      string  
-	ECHConfigList      string     
-	ECHForceQuery      string 
+	ECHConfigList      string  
 	PinnedPeerCertSha256 string
 }
 
@@ -141,6 +140,7 @@ type SocketSettings struct {
 	DomainStrategy       string
 	Enabled              bool
 	TcpCongestion        string
+	AcceptProxyProtocol  bool
 }
 
 type XhttpSettings struct {
@@ -157,17 +157,20 @@ type XhttpSettings struct {
 type RawSettings struct {
 	Flow                string
 	Header              json.RawMessage
+	AcceptProxyProtocol bool
 }
 
 type WsSettings struct {
 	Host                string
 	Path                string
 	HeartbeatPeriod     uint32
+	AcceptProxyProtocol bool
 }
 
 type HttpSettings struct {
 	Host                string
 	Path                string
+	AcceptProxyProtocol bool
 }
 
 type GrpcSettings struct {
@@ -202,7 +205,6 @@ type NodeInfo struct {
 	SendThroughIP   string
 	Cipher          string
 	Flow            string
-	AcceptProxyProtocol bool
 	ServerKey       string
 	Decryption      string
 	SecurityType    string
@@ -234,7 +236,6 @@ type RelayNodeInfo struct {
 	Flow            string
 	ServerKey       string
 	Encryption      string
-	AcceptProxyProtocol bool
 	KcpSettings     *KcpSettings
 	GrpcSettings    *GrpcSettings
 	RawSettings     *RawSettings

@@ -79,16 +79,17 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "raw",
     "settings": {
+      "acceptProxyProtocol": false,
       "header": {
         "type": "none"
       }
     }
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -110,10 +111,10 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "raw",
     "settings": {
+      "acceptProxyProtocol": false,
       "header": {
         "type": "http",
         "request": {
@@ -126,6 +127,7 @@ Nodes:
     }
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -147,10 +149,10 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "ws",
     "settings": {
+      "acceptProxyProtocol": false,
       "host": "xmplus.dev",
       "path": "/",
       "heartbeat": 60,
@@ -158,6 +160,7 @@ Nodes:
     }
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -194,6 +197,7 @@ Nodes:
     }
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -216,16 +220,17 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "httpupgrade",
     "settings": {
+      "acceptProxyProtocol": false,
       "host": "xmplus.dev",
       "path": "/",
       "custom_host": "xmplus.dev"
     }
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -248,7 +253,6 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "xhttp",
     "settings": {
@@ -266,6 +270,7 @@ Nodes:
     }
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -288,7 +293,6 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "kcp",
     "settings": {
@@ -307,6 +311,7 @@ Nodes:
     ]
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -326,7 +331,6 @@ Nodes:
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",
   "sendThroughIP": "0.0.0.0",
-  "acceptProxyProtocol": false,
   "transportProtocol": {
     "type": "hysteria",
     "settings": {
@@ -344,6 +348,7 @@ Nodes:
     ]
   },
   "socketSettings": {
+    "acceptProxyProtocol": false,
     "domainStrategy": "asis",
     "tcpKeepAliveInterval": 0,
     "tcpUserTimeout": 0,
@@ -373,10 +378,8 @@ Nodes:
     "rejectUnknownSni": false,
     "verifyPeerCertByName": "google.com",
     "pinnedPeerCertSha256": "",
-    "disableSystemRoot": false,
     "echServerKeys": "",
-    "echConfigList": "",
-    "echForceQuery": "half"
+    "echConfigList": ""
   }
 }
 ```

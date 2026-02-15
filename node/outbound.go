@@ -183,31 +183,28 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 	
 	switch networkType {
 	case "tcp", "raw":
-		tcpSetting := &conf.TCPConfig{
-			AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
-		}
+		tcpSetting := &conf.TCPConfig{}
 		// Check if RawSettings is not nil
 		if nodeInfo.RawSettings != nil {
 			tcpSetting.HeaderConfig = nodeInfo.RawSettings.Header
+			tcpSetting.AcceptProxyProtocol = nodeInfo.RawSettings.AcceptProxyProtocol
 		}
 		streamSetting.TCPSettings = tcpSetting
 	case "websocket", "ws":
-		wsSettings := &conf.WebSocketConfig{
-			AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
-		}
+		wsSettings := &conf.WebSocketConfig{}
 		// Check if WsSettings is not nil
 		if nodeInfo.WsSettings != nil {
 			wsSettings.Path = nodeInfo.WsSettings.Path
 			wsSettings.Host = nodeInfo.WsSettings.Host
 			wsSettings.HeartbeatPeriod = nodeInfo.WsSettings.HeartbeatPeriod
+			wsSettings.AcceptProxyProtocol = nodeInfo.WsSettings.AcceptProxyProtocol
 		}
 		streamSetting.WSSettings = wsSettings
 	case "httpupgrade":
-		httpupgradeSettings := &conf.HttpUpgradeConfig{
-		    AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
-		}
+		httpupgradeSettings := &conf.HttpUpgradeConfig{}
 		// Check if HttpSettings is not nil
 		if nodeInfo.HttpSettings != nil {
+			httpupgradeSettings.AcceptProxyProtocol = nodeInfo.HttpSettings.AcceptProxyProtocol
 			httpupgradeSettings.Host = nodeInfo.HttpSettings.Host
 			httpupgradeSettings.Path = nodeInfo.HttpSettings.Path
 		}
