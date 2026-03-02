@@ -388,7 +388,7 @@ Nodes:
 ```
 {
   "realitySettings": {
-    "dest": "www.microsoft.com:443",
+    "target": "www.microsoft.com:443",
     "show": false,
     "shortids": ["6ba85179e30d4fc2"],
     "password": "u2Yirzjxx5R5miuJ-Od8CL4gAiCWj-65WOF2mSVyUz4",

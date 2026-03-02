@@ -72,7 +72,7 @@ func run() error {
 	
 	config.OnConfigChange(func(e fsnotify.Event) {
 		// Discarding event received within a short period of time after receiving an event.
-		if time.Now().After(lastTime.Add(3 * time.Second)) {
+		if time.Now().After(lastTime.Add(2 * time.Second)) {
 			log.Printf("Config file changed: %s", e.Name)
 			lastTime = time.Now()
 			// Trigger restart

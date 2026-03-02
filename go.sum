@@ -1699,8 +1699,8 @@ github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gi
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xtls/reality v0.0.0-20251014195629-e4eec4520535 h1:nwobseOLLRtdbP6z7Z2aVI97u8ZptTgD1ofovhAKmeU=
 github.com/xtls/reality v0.0.0-20251014195629-e4eec4520535/go.mod h1:vbHCV/3VWUvy1oKvTxxWJRPEWSeR1sYgQHIh6u/JiZQ=
-github.com/xtls/xray-core v1.260206.1-0.20260213195158-b6a7609c8760 h1:nhXrPzja2ChyIiKkhEqdjSq4AsDuRB6LzRUKI5+5cl0=
-github.com/xtls/xray-core v1.260206.1-0.20260213195158-b6a7609c8760/go.mod h1:VfgVJKfkW5V3V/2WdDiOVrfa8tNMsXCWtw/IMGMQ66c=
+github.com/xtls/xray-core v1.260206.1-0.20260301184558-0bffea3390f8 h1:Z/eXCCT5f0gw9eEEFA42c6y8/n8DnhqP8z0xl2Ux0YQ=
+github.com/xtls/xray-core v1.260206.1-0.20260301184558-0bffea3390f8/go.mod h1:ZpQ9kSXoUKsJvxY9pwCtZej0bISqcSfjfrduixizm7Y=
 github.com/yandex-cloud/go-genproto v0.54.0 h1:LjEwDPBAtF39HvcPQe8I+ImCnFasCPCOVh2b2Sr2eAg=
 github.com/yandex-cloud/go-genproto v0.54.0/go.mod h1:0LDD/IZLIUIV4iPH+YcF+jysO3jkSvADFGm4dCAuwQo=
 github.com/yandex-cloud/go-sdk/services/dns v0.0.36 h1:sD622+baDvJ2ujhCfoFsCH0XeNsaZNW6loRqvRavjtE=
@@ -2562,6 +2562,8 @@ google.golang.org/grpc v1.54.0/go.mod h1:PUSEXI6iWghWaB6lXM4knEgpJNu2qUcKfDtNci3
 google.golang.org/grpc v1.55.0/go.mod h1:iYEXKGkEBhg1PjZQvoYEVPTDkHo1/bjTnfwTeGONTY8=
 google.golang.org/grpc v1.79.0 h1:6/+EFlxsMyoSbHbBoEDx94n/Ycx/bi0IhJ5Qh7b7LaA=
 google.golang.org/grpc v1.79.0/go.mod h1:KmT0Kjez+0dde/v2j9vzwoAScgEPx/Bw1CYChhHLrHQ=
+google.golang.org/grpc v1.79.1 h1:zGhSi45ODB9/p3VAawt9a+O/MULLl9dpizzNNpq7flY=
+google.golang.org/grpc v1.79.1/go.mod h1:KmT0Kjez+0dde/v2j9vzwoAScgEPx/Bw1CYChhHLrHQ=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=

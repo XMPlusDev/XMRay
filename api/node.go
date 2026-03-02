@@ -394,7 +394,7 @@ func (c *Client) parseSecuritySettings(securityData *simplejson.Json, nodeInfo *
 		nodeInfo.SecurityType = "reality"
 		nodeInfo.RealitySettings = &RealitySettings{}
 
-		if dest, err := realitySettings.Get("dest").String(); err == nil {
+		if dest, err := realitySettings.Get("target").String(); err == nil {
 			destBytes, err := json.Marshal(dest)
 			if err != nil {
 				return err
