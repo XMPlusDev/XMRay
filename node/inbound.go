@@ -190,7 +190,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				httpupgradeSettings.Path = nodeInfo.HttpSettings.Path
 			}
 			streamSetting.HTTPUPGRADESettings = httpupgradeSettings	
-		case "xhttp":
+		case "xhttp", "splithttp":
 			var ScStreamUpA, ScStreamUpB int32 = 20, 80
 			
 			// Check if XhttpSettings is not nil

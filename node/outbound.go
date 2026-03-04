@@ -209,7 +209,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			httpupgradeSettings.Path = nodeInfo.HttpSettings.Path
 		}
 		streamSetting.HTTPUPGRADESettings = httpupgradeSettings	
-	case "xhttp":
+	case "xhttp", "splithttp":
 		xhttpSettings := &conf.SplitHTTPConfig{}
 		// Check if XhttpSettings is not nil
 		if nodeInfo.XhttpSettings != nil {
