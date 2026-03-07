@@ -224,6 +224,7 @@ func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *tran
 	sessionInbound := session.InboundFromContext(ctx)
 	var user *protocol.MemoryUser
 	if sessionInbound != nil {
+		sessionInbound.CanSpliceCopy = 3
 		user = sessionInbound.User
 	}
 
@@ -309,6 +310,7 @@ func (d *DefaultDispatcher) WrapLink(ctx context.Context, policyManager policy.M
 	sessionInbound := session.InboundFromContext(ctx)
 	var user *protocol.MemoryUser
 	if sessionInbound != nil {
+		sessionInbound.CanSpliceCopy = 3
 		user = sessionInbound.User
 	}
 
