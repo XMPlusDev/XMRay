@@ -318,21 +318,19 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		finalMaskSettings := &conf.FinalMask{}
 
 		if nodeInfo.MaskSettings.UDP != nil {
-			finalMaskSettings.Udp = []conf.Mask{
-				{
-					Type:     nodeInfo.MaskSettings.UDP.Type,
-					Settings: nodeInfo.MaskSettings.UDP.Settings,
-				},
+			udpMask := conf.Mask{Type: nodeInfo.MaskSettings.UDP.Type}
+			if nodeInfo.MaskSettings.UDP.Settings != nil {
+				udpMask.Settings = nodeInfo.MaskSettings.UDP.Settings
 			}
+			finalMaskSettings.Udp = []conf.Mask{udpMask}
 		}
 
 		if nodeInfo.MaskSettings.TCP != nil {
-			finalMaskSettings.Tcp = []conf.Mask{
-				{
-					Type:     nodeInfo.MaskSettings.TCP.Type,
-					Settings: nodeInfo.MaskSettings.TCP.Settings,
-				},
+			tcpMask := conf.Mask{Type: nodeInfo.MaskSettings.TCP.Type}
+			if nodeInfo.MaskSettings.TCP.Settings != nil {
+				tcpMask.Settings = nodeInfo.MaskSettings.TCP.Settings
 			}
+			finalMaskSettings.Tcp = []conf.Mask{tcpMask}
 		}
 
 		streamSetting.FinalMask = finalMaskSettings
