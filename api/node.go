@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 	"errors"
+	"math"
 	"math/rand"
 	"strconv"
-
+    
 	"github.com/bitly/go-simplejson"
 )
 
