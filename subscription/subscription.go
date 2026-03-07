@@ -42,6 +42,7 @@ func (m *Manager) AddNewSubscription(subscriptionInfo *[]api.SubscriptionInfo, n
 	}
 
 	var users []*protocol.User
+	
 	switch nodeInfo.NodeType {
 	case "vless":
 		users = BuildVlessUsers(subscriptionInfo, nodeInfo.Flow, tag)

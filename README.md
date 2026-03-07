@@ -303,9 +303,10 @@ Nodes:
   "maskSettings": {
     "udp": [
       {
-        "type": "mkcp-aes128gcm",
+        "type": "xicmp",
         "settings": {
-          "password": "your-password-here"
+          "id": "1234",
+          "listenIp": "0.0.0.0"
         }
       }
     ]
@@ -327,6 +328,8 @@ Nodes:
 ####  HYSTERIA
 ```
 {
+  "encryption": "none",
+  "decryption": "none",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
   "listeningPort": "443-443",

@@ -253,15 +253,26 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 	
 	// FIXED: Check nil BEFORE accessing Enabled
 	if nodeInfo.MaskSettings != nil && nodeInfo.MaskSettings.Enabled {
-		udpMask := conf.Mask{
-			Type:     nodeInfo.MaskSettings.Type,
-			Settings: nodeInfo.MaskSettings.Settings,
+		finalMaskSettings := &conf.FinalMask{}
+
+		if nodeInfo.MaskSettings.UDP != nil {
+			finalMaskSettings.Udp = []conf.Mask{
+				{
+					Type:     nodeInfo.MaskSettings.UDP.Type,
+					Settings: nodeInfo.MaskSettings.UDP.Settings,
+				},
+			}
 		}
-		
-		finalMaskSettings := &conf.FinalMask{
-			Udp: []conf.Mask{udpMask}, 
+
+		if nodeInfo.MaskSettings.TCP != nil {
+			finalMaskSettings.Tcp = []conf.Mask{
+				{
+					Type:     nodeInfo.MaskSettings.TCP.Type,
+					Settings: nodeInfo.MaskSettings.TCP.Settings,
+				},
+			}
 		}
-		
+
 		streamSetting.FinalMask = finalMaskSettings
 	}
 	

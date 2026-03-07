@@ -125,7 +125,12 @@ type RealitySettings struct {
 }
 
 type MaskSettings struct {
-	Enabled  bool
+	Enabled bool
+	TCP     *MaskEntry
+	UDP     *MaskEntry
+}
+
+type MaskEntry struct {
 	Type     string
 	Settings *json.RawMessage
 }

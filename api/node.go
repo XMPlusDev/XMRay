@@ -273,37 +273,7 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 
 // parseMaskSettings extracts mask configuration
 func (c *Client) parseMaskSettings(maskSettings *simplejson.Json, nodeInfo *NodeInfo) error {
-	
-	if maskUDP, isOK := maskSettings.CheckGet("udp"); isOK {
-		// Get the array of masks
-		maskArray, err := maskUDP.Array()
-		if err != nil {
-			return err
-		}
-		
-		// Only process if there's at least one mask in the array
-		if len(maskArray) > 0 {
-			nodeInfo.MaskSettings = &MaskSettings{}
-			nodeInfo.MaskSettings.Enabled = true
-			
-			// Get the first mask from the array
-			firstMask := maskUDP.GetIndex(0)
-			
-			if maskType, err := firstMask.Get("type").String(); err == nil {
-				nodeInfo.MaskSettings.Type = maskType
-			}
-			
-			if settings, ok := firstMask.CheckGet("settings"); ok {
-				settingsBytes, err := settings.MarshalJSON()
-				if err != nil {
-					return err
-				}
-				nodeInfo.MaskSettings.Settings = (*json.RawMessage)(&settingsBytes)
-			}
-		}
-	}
-	
-	return nil
+	return parseMaskSettingsInto(maskSettings, &nodeInfo.MaskSettings)
 }
 
 // parseSocketSettings extracts socket configuration
@@ -645,38 +615,9 @@ func selectSinglePort(portString string) (uint32, error) {
 
 // parseRelayMaskSettings extracts mask configuration
 func (c *Client) parseRelayMaskSettings(maskSettings *simplejson.Json, nodeInfo *RelayNodeInfo) error {
-	
-	if maskUDP, isOK := maskSettings.CheckGet("udp"); isOK {
-		// Get the array of masks
-		maskArray, err := maskUDP.Array()
-		if err != nil {
-			return err
-		}
-		
-		// Only process if there's at least one mask in the array
-		if len(maskArray) > 0 {
-			nodeInfo.MaskSettings = &MaskSettings{}
-			nodeInfo.MaskSettings.Enabled = true
-			
-			// Get the first mask from the array
-			firstMask := maskUDP.GetIndex(0)
-			
-			if maskType, err := firstMask.Get("type").String(); err == nil {
-				nodeInfo.MaskSettings.Type = maskType
-			}
-			
-			if settings, ok := firstMask.CheckGet("settings"); ok {
-				settingsBytes, err := settings.MarshalJSON()
-				if err != nil {
-					return err
-				}
-				nodeInfo.MaskSettings.Settings = (*json.RawMessage)(&settingsBytes)
-			}
-		}
-	}
-	
-	return nil
+	return parseMaskSettingsInto(maskSettings, &nodeInfo.MaskSettings)
 }
+
 
 // parseRelayNetworkSettings extracts relay network configuration
 func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeInfo *RelayNodeInfo) error {
@@ -851,4 +792,106 @@ func (c *Client) parseRelaySecuritySettings(securityData *simplejson.Json, nodeI
 			nodeInfo.RealitySettings.Mldsa65Verify = mldsa65Verify
 		}
 	}
+}
+
+func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) error {
+	hasTCP := false
+	hasUDP := false
+
+	if maskTCP, isOK := maskSettings.CheckGet("tcp"); isOK {
+		maskArray, err := maskTCP.Array()
+		if err != nil {
+			return err
+		}
+		hasTCP = len(maskArray) > 0
+	}
+
+	if maskUDP, isOK := maskSettings.CheckGet("udp"); isOK {
+		maskArray, err := maskUDP.Array()
+		if err != nil {
+			return err
+		}
+		hasUDP = len(maskArray) > 0
+	}
+
+	if !hasTCP && !hasUDP {
+		return nil
+	}
+
+	*ms = &MaskSettings{Enabled: true}
+
+	if hasTCP {
+		firstMask := maskSettings.Get("tcp").GetIndex(0)
+		parsed, err := parseSingleMask(firstMask)
+		if err != nil {
+			return fmt.Errorf("tcp mask: %w", err)
+		}
+		(*ms).TCP = parsed
+	}
+
+	if hasUDP {
+		firstMask := maskSettings.Get("udp").GetIndex(0)
+		parsed, err := parseSingleMask(firstMask)
+		if err != nil {
+			return fmt.Errorf("udp mask: %w", err)
+		}
+		(*ms).UDP = parsed
+	}
+
+	return nil
+}
+
+func parseSingleMask(mask *simplejson.Json) (*MaskEntry, error) {
+	entry := &MaskEntry{}
+
+	if maskType, err := mask.Get("type").String(); err == nil {
+		entry.Type = maskType
+	}
+
+	settings, ok := mask.CheckGet("settings")
+	if !ok {
+		return entry, nil
+	}
+
+	settingsMap, err := settings.Map()
+	if err != nil {
+		return nil, err
+	}
+
+	normalizedMap := make(map[string]interface{})
+	for k, v := range settingsMap {
+		if k == "id" {
+			switch val := v.(type) {
+			case json.Number:
+				n, err := strconv.ParseUint(val.String(), 10, 16)
+				if err != nil {
+					return nil, fmt.Errorf("invalid id value %q: must be uint16: %w", val, err)
+				}
+				normalizedMap[k] = uint16(n)
+			case float64:
+				if val < 0 || val > 65535 || val != math.Trunc(val) {
+					return nil, fmt.Errorf("invalid id value %v: must be uint16", val)
+				}
+				normalizedMap[k] = uint16(val)
+			case string:
+				n, err := strconv.ParseUint(val, 10, 16)
+				if err != nil {
+					return nil, fmt.Errorf("invalid id value %q: must be uint16: %w", val, err)
+				}
+				normalizedMap[k] = uint16(n)
+			default:
+				return nil, fmt.Errorf("unexpected type %T for id field", v)
+			}
+		} else {
+			normalizedMap[k] = v
+		}
+	}
+
+	settingsBytes, err := json.Marshal(normalizedMap)
+	if err != nil {
+		return nil, err
+	}
+	entry.Settings = (*json.RawMessage)(&settingsBytes)
+
+	return entry, nil
 }

@@ -10,7 +10,7 @@ InboundConfigPath: # /etc/XMPlus/inbound.json  #https://xtls.github.io/config/in
 OutboundConfigPath: # /etc/XMPlus/outbound.json   #https://xtls.github.io/config/outbound.html
 ConnectionConfig:
   Handshake: 8 
-  ConnIdle: 120 
+  ConnIdle: 60 
   UplinkOnly: 0 
   DownlinkOnly: 0 
   BufferSize: 64
