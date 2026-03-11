@@ -303,11 +303,7 @@ Nodes:
   "maskSettings": {
     "udp": [
       {
-        "type": "xicmp",
-        "settings": {
-          "id": "1234",
-          "listenIp": "0.0.0.0"
-        }
+        "type": "xicmp"
       }
     ]
   },
