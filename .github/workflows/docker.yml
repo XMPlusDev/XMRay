@@ -6,13 +6,13 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: xmplusdev/xmplus-server
-
 jobs:
   build:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
+      actions: write
       
     strategy:
       fail-fast: false
@@ -27,6 +27,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download geo data files
+        run: |
+          mkdir -p ./build_assets
+          LIST=('geoip geoip geoip' 'domain-list-community dlc geosite')
+          for i in "${LIST[@]}"
+          do
+              INFO=($(echo $i | awk 'BEGIN{FS=" ";OFS=" "} {print $1,$2,$3}'))
+              FILE_NAME="${INFO[2]}.dat"
+              echo -e "Downloading https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat..."
+              curl -L "https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat" -o ./build_assets/${FILE_NAME}
+              echo -e "Verifying HASH key..."
+              HASH="$(curl -sL "https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat.sha256sum" | awk -F ' ' '{print $1}')"
+              [ "$(sha256sum "./build_assets/${FILE_NAME}" | awk -F ' ' '{print $1}')" == "${HASH}" ] || { echo -e "The HASH key of ${FILE_NAME} does not match cloud one."; exit 1; }
+          done
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -62,12 +78,12 @@ jobs:
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
-
   merge:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
+      actions: write
       
     needs:
       - build
