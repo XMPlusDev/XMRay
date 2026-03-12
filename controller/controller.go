@@ -283,15 +283,6 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			c.nodeInfo = newNodeInfo
 			c.Tag = c.buildNodeTag()
 		
-			// Remove Old limiter
-			if(oldTag != c.Tag){
-				err = c.nodeManager.DeleteInboundLimiter(oldTag)
-				if err != nil {
-					log.Print(err)
-					return nil
-				}
-			}
-		
 			err = c.nodeManager.AddRuleTag(
 				newNodeInfo, 
 				c.Tag, 
@@ -307,6 +298,13 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				return nil
 			}
 			//nodeInfoChanged = true
+		
+			// Remove Old limiter
+			err = c.nodeManager.DeleteInboundLimiter(oldTag)
+			if err != nil {
+				log.Print(err)
+				return nil
+			}
 		} else {
 			nodeInfoChanged = false
 		}
