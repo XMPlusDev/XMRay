@@ -216,7 +216,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				}else{
 					return nil, fmt.Errorf("invalid range format: %s", nodeInfo.XhttpSettings.ScStreamUpServerSecs)
 				}
-			} else if nodeInfo.XhttpSettings.ScStreamUpServerSecs != nil {
+			} else {
 				parsedStream, err := strconv.ParseInt(nodeInfo.XhttpSettings.ScStreamUpServerSecs, 10, 32)
 				if err != nil {
 					return nil, err
@@ -250,7 +250,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				}else{
 					return nil, fmt.Errorf("invalid range format: %s", nodeInfo.XhttpSettings.XPaddingBytes)
 				}
-			} else if nodeInfo.XhttpSettings.XPaddingBytes != nil {
+			} else {
 				parsedXPadding, err := strconv.ParseInt(nodeInfo.XhttpSettings.XPaddingBytes, 10, 32)
 				if err != nil {
 					return nil, err

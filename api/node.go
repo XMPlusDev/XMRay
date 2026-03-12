@@ -189,8 +189,11 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 		}
 
 		// Set defaults first
+		nodeInfo.XhttpSettings.NoSSEHeader = bool(false)
 		nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(1000000)
 		nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(30)
+		nodeInfo.XhttpSettings.XPaddingBytes = "100-100"
+		nodeInfo.XhttpSettings.ScStreamUpServerSecs = "20-80"
 
 		if extraSettings, isOK := transportSettings.CheckGet("extra"); isOK {
 			nodeInfo.XhttpSettings.NoSSEHeader = extraSettings.Get("noSSEHeader").MustBool()
