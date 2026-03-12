@@ -278,17 +278,19 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			if err != nil {
 				log.Print(err)
 			}
-		
-			// Remove Old limiter
-			err = c.nodeManager.DeleteInboundLimiter(oldTag)
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
 			
 			// Add new tag
 			c.nodeInfo = newNodeInfo
 			c.Tag = c.buildNodeTag()
+		
+			// Remove Old limiter
+			if(oldTag != c.Tag){
+				err = c.nodeManager.DeleteInboundLimiter(oldTag)
+				if err != nil {
+					log.Print(err)
+					return nil
+				}
+			}
 		
 			err = c.nodeManager.AddRuleTag(
 				newNodeInfo, 
@@ -335,10 +337,9 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 	}else {
 		if subscriptionChanged {
 			deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
-			
-			// Log what changed for debugging
+
 			//log.Printf("%s Subscriptions Monitoring - Deleted: %d, Added: %d, Modified: %d", 
-			//	c.LogPrefix, len(deleted), len(added), len(modified))
+			//c.LogPrefix, len(deleted), len(added), len(modified))
 			
 			// Handle deleted subscriptions
 			if len(deleted) > 0 {
@@ -400,7 +401,7 @@ func (c *Controller) Close() error {
 
 func (c *Controller) certMonitor() error {
 	switch c.nodeInfo.TlsSettings.CertMode {
-	case "dns", "http":
+	case "dns", "http", "tls":
 		lego, err := cert.New(c.config.CertConfig)
 		if err != nil {
 			log.Print(err)
