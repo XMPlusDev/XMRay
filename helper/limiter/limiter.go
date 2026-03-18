@@ -61,8 +61,6 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 		BucketHub:      		new(sync.Map),
 		SubscriptionOnlineIP:   new(sync.Map),
 	}
-	
-	expiry = expiry * 2
 
 	if redisConfig != nil && redisConfig.Enable {
 		inboundInfo.GlobalIPLimit.config = redisConfig
