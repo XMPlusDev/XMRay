@@ -8,7 +8,7 @@ require (
 	github.com/eko/gocache/lib/v4 v4.2.3
 	github.com/eko/gocache/store/redis/v4 v4.2.6
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/go-acme/lego/v4 v4.32.0
+	github.com/go-acme/lego/v4 v4.33.0
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/r3labs/diff/v2 v2.15.1
 	github.com/redis/go-redis/v9 v9.18.0
