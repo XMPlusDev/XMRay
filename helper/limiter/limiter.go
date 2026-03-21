@@ -203,9 +203,9 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 							}
 						}
 
-						if len(remaining) == 0 {
-							delete(*ipMap, ip)
-						} else {
+						if len(remaining) > 0 {
+						//	delete(*ipMap, ip)
+						//} else {
 							(*ipMap)[ip] = remaining
 						}
 					}
@@ -274,9 +274,9 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 							}
 						}
 
-						if len(remaining) == 0 {
-							ipMap.Delete(ip)
-						} else {
+						if len(remaining) > 0 {
+						//	ipMap.Delete(ip)
+						//} else {
 							ipMap.Store(ip, remaining)
 						}
 					}
