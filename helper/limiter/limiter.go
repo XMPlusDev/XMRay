@@ -189,15 +189,31 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 				if err == nil {
 					ipMap := v.(*map[string][]IPData)
+					modified := false
+
 					for ip, dataList := range *ipMap {
 						// Iterate through all IPData entries for this IP
+						remaining := dataList[:0]
 						for _, data := range dataList {
 							if data.Tag == tag {
 								onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
+								modified = true
+							} else {
+								remaining = append(remaining, data)
 							}
 						}
+
+						if len(remaining) == 0 {
+							delete(*ipMap, ip)
+						} else {
+							(*ipMap)[ip] = remaining
+						}
 					}
-					// Note: Redis TTL will handle expiration automatically
+
+					// Push updated map back to Redis if we removed any entries
+					if modified {
+						go pushIP(inboundInfo, uniqueKey, ipMap)
+					}
 				}
 				
 				return true
@@ -243,23 +259,41 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 			inboundInfo.SubscriptionOnlineIP.Range(func(key, value interface{}) bool {
 				email := key.(string)
 				ipMap := value.(*sync.Map)
-				uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
-				
+				uniqueKey := strings.Replace(email, inboundInfo.Tag+"|", "", 1)
+
 				ipMap.Range(func(key, value interface{}) bool {
 					ip := key.(string)
-					
-					// Handle []IPData type
+
 					if dataList, ok := value.([]IPData); ok {
+						remaining := dataList[:0]
 						for _, data := range dataList {
 							if data.Tag == tag {
 								onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
+							} else {
+								remaining = append(remaining, data)
 							}
 						}
+
+						if len(remaining) == 0 {
+							ipMap.Delete(ip)
+						} else {
+							ipMap.Store(ip, remaining)
+						}
 					}
-					
+
 					return true
 				})
-				inboundInfo.SubscriptionOnlineIP.Delete(uniqueKey) // Reset online device
+
+				// Delete the uniqueKey only if the ipMap is now empty
+				empty := true
+				ipMap.Range(func(_, _ interface{}) bool {
+					empty = false
+					return false
+				})
+				if empty {
+					inboundInfo.SubscriptionOnlineIP.Delete(uniqueKey)
+				}
+
 				return true
 			})
 		}
