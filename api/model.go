@@ -78,7 +78,6 @@ type Subscription struct {
 	Passwd     string `json:"passwd"`
 	Speedlimit int    `json:"speed_limit"`
 	Iplimit    int    `json:"ip_limit"`
-	IpCount    int    `json:"ip_count"`
 }
 
 type BlockingRules struct {
@@ -259,7 +258,6 @@ type SubscriptionInfo struct {
 	Passwd       string
 	SpeedLimit   uint64
 	IPLimit      int
-	IPCount      int
 }
 
 type OnlineIP struct {

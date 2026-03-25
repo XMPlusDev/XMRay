@@ -73,7 +73,6 @@ func (c *Client) ParseSubscriptionList(subscriptionResponse *[]Subscription) (*[
 			Email:      subscription.Email,
 			Passwd:     subscription.Passwd,
 			IPLimit:    subscription.Iplimit,
-			IPCount:    subscription.IpCount,
 			SpeedLimit: speedLimit,
 		})
 	}
