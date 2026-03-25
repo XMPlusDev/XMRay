@@ -23,7 +23,6 @@ type SubscriptionInfo struct {
 	Id          int
 	SpeedLimit  uint64
 	IPLimit     int
-	IPCount     int
 }
 
 type IPData struct {
@@ -83,7 +82,6 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 			Id:          u.Id,
 			SpeedLimit:  u.SpeedLimit,
 			IPLimit:     u.IPLimit,
-			IPCount:     u.IPCount,
 		})
 	}
 	inboundInfo.SubscriptionInfo = serviceMap
@@ -100,7 +98,6 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 				Id:          u.Id,
 				SpeedLimit:  u.SpeedLimit,
 				IPLimit: 	 u.IPLimit,
-				IPCount:     u.IPCount,
 			})
 			// Update old limiter bucket
 			limit := determineRate(inboundInfo.NodeSpeedLimit, u.SpeedLimit)
@@ -228,7 +225,7 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		var (
 			SpeedLimit  uint64 = 0
-			ipLimit, ipCount, uid int
+			ipLimit, uid int
 		)
 		
 		if ip == "" {
@@ -243,7 +240,6 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 			uid = u.Id
 			SpeedLimit = u.SpeedLimit
 			ipLimit = u.IPLimit
-			ipCount = u.IPCount
 		}
 
 		// Check IP limit based on whether GlobalIPLimit (Redis) is enabled
