@@ -37,7 +37,6 @@ type InboundInfo struct {
 	NodeSpeedLimit 		   uint64
 	SubscriptionInfo   	   *sync.Map // Key: Email value: SubscriptionInfo
 	BucketHub      		   *sync.Map // key: Email, value: *rate.Limiter
-	SubscriptionOnlineIP   *sync.Map // Key: Email, value: {Key: IP, value: []IPData}
 	GlobalIPLimit  struct {
 		config         *RedisConfig
 		globalOnlineIP *marshaler.Marshaler
@@ -59,7 +58,6 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 		Tag:            		tag,
 		NodeSpeedLimit: 		nodeSpeedLimit,
 		BucketHub:      		new(sync.Map),
-		SubscriptionOnlineIP:   new(sync.Map),
 	}
 
 	if redisConfig != nil && redisConfig.Enable {
@@ -218,84 +216,6 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				
 				return true
 			})
-		} else {
-			// Fallback to local SubscriptionOnlineIP if GlobalIPLimit is not enabled
-			// Clear Speed Limiter bucket for users who are not online (check local)
-			inboundInfo.BucketHub.Range(func(key, value interface{}) bool {
-				email := key.(string)
-				
-				uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
-				if v, exists := inboundInfo.SubscriptionOnlineIP.Load(uniqueKey); exists {
-					// User exists in SubscriptionOnlineIP - check if this specific email exists in any IPData
-					ipMap := v.(*sync.Map)
-					emailFound := false
-					
-					ipMap.Range(func(ipKey, ipValue interface{}) bool {
-						// Handle []IPData type
-						if dataList, ok := ipValue.([]IPData); ok {
-							for _, data := range dataList {
-								if data.Email == email {
-									emailFound = true
-									return false // break the Range loop
-								}
-							}
-						}
-						
-						return true
-					})
-					
-					// If email not found in any IPData, delete bucket
-					if !emailFound {
-						inboundInfo.BucketHub.Delete(email)
-					}
-				} else {
-					// User not in SubscriptionOnlineIP, delete bucket
-					inboundInfo.BucketHub.Delete(email)
-				}
-				
-				return true
-			})
-			
-			inboundInfo.SubscriptionOnlineIP.Range(func(key, value interface{}) bool {
-				email := key.(string)
-				ipMap := value.(*sync.Map)
-				uniqueKey := strings.Replace(email, inboundInfo.Tag+"|", "", 1)
-
-				ipMap.Range(func(key, value interface{}) bool {
-					ip := key.(string)
-
-					if dataList, ok := value.([]IPData); ok {
-						remaining := dataList[:0]
-						for _, data := range dataList {
-							if data.Tag == tag {
-								onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
-							} else {
-								remaining = append(remaining, data)
-							}
-						}
-
-						if len(remaining) == 0 {
-							ipMap.Delete(ip)
-						} else {
-							ipMap.Store(ip, remaining)
-						}
-					}
-
-					return true
-				})
-
-				// Delete the uniqueKey only if the ipMap is now empty
-				empty := true
-				ipMap.Range(func(_, _ interface{}) bool {
-					empty = false
-					return false
-				})
-				if empty {
-					inboundInfo.SubscriptionOnlineIP.Delete(uniqueKey)
-				}
-
-				return true
-			})
 		}
 	} else {
 		return nil, fmt.Errorf("No such limiter: %s found", tag)
@@ -332,72 +252,7 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 			if reject := checkLimit(inboundInfo, email, uid, ip, ipLimit, tag); reject {
 				return nil, false, true
 			}
-		} else {
-			// Use local SubscriptionOnlineIP for IP limit checking
-			newIPData := IPData{UID: uid, Tag: tag, Email: email}
-			
-			// If any device is online
-			uniqueKey := strings.Replace(email, inboundInfo.Tag + "|", "", 1)
-			
-			// Try to load existing IP map for this subscription email
-			v, exists := inboundInfo.SubscriptionOnlineIP.Load(uniqueKey)
-			
-			if exists {
-				// subscription email already exists - update their IP map
-				ipMap := v.(*sync.Map)
-				
-				// Check if this IP already exists
-				if existingValue, ipExists := ipMap.Load(ip); ipExists {
-					// IP exists - check if we need to append or update
-					var dataList []IPData
-					
-					// Handle different data types
-					if list, ok := existingValue.([]IPData); ok {
-						dataList = list
-					}
-					
-					// Check if this exact UID and Tag combination exists
-					found := false
-					for i, data := range dataList {
-						if data.UID == uid && data.Tag == tag {
-							// Update existing entry
-							dataList[i] = newIPData
-							found = true
-							break
-						}
-					}
-					
-					// If UID or Tag is different, append new IPData
-					if !found {
-						dataList = append(dataList, newIPData)
-					}
-					
-					ipMap.Store(ip, dataList)
-				} else {
-					// NEW IP - count unique IPs before adding
-					counter := 0
-					ipMap.Range(func(key, value interface{}) bool {
-						counter++
-						return true
-					})
-					
-					// Check if we're AT the limit already (before adding new IP)
-					if ipLimit > 0 && (counter >= ipLimit || ipLimit <= ipCount) {
-						// Reject NEW IP only
-						return nil, false, true
-					}
-					
-					// Within limit, add the new IP with IPData as a slice
-					ipMap.Store(ip, []IPData{newIPData})
-				}
-			} else {
-				// subscription email doesn't exist - create new IP map for this subscription email
-				ipMap := new(sync.Map)
-				ipMap.Store(ip, []IPData{newIPData})
-				inboundInfo.SubscriptionOnlineIP.Store(uniqueKey, ipMap)
-			}
 		}
-
 		
 		// Speed limit
 		limit := determineRate(nodeLimit, SpeedLimit) // Determine the speed limit rate
