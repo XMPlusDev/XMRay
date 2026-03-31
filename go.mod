@@ -12,7 +12,7 @@ require (
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/r3labs/diff/v2 v2.15.1
 	github.com/redis/go-redis/v9 v9.18.0
-	github.com/sagernet/sing v0.8.2
+	github.com/sagernet/sing v0.8.3
 	github.com/sagernet/sing-shadowsocks v0.2.9
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
