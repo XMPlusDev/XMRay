@@ -14,10 +14,10 @@ import (
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/xmplusdev/xmplus-server/api"
-	"github.com/xmplusdev/xmplus-server/controller"
-	_ "github.com/xmplusdev/xmplus-server/main/distro/all"
-	"github.com/xmplusdev/xmplus-server/app/dispatcher"
+	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/controller"
+	_ "github.com/xmplusdev/xmray/main/distro/all"
+	"github.com/xmplusdev/xmray/app/dispatcher"
 )
 
 // Manager Structure
@@ -265,9 +265,13 @@ func (m *Manager) Restart() error {
 			}
 		}
 		controllerService = controller.New(server, apiClient, controllerConfig)
+		// Set manager reference so controllers can trigger restarts
+		if ctrl, ok := controllerService.(interface{ SetManager(ManagerInterface) }); ok {
+			ctrl.SetManager(m)
+		}
 		m.Service = append(m.Service, controllerService)
 	}
-	
+
 	// Start all services
 	for _, s := range m.Service {
 		if err := s.Start(); err != nil {

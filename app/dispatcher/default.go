@@ -28,7 +28,7 @@ import (
 	"github.com/xtls/xray-core/transport"
 	"github.com/xtls/xray-core/transport/pipe"
 	
-	"github.com/xmplusdev/xmplus-server/helper/limiter"
+	"github.com/xmplusdev/xmray/helper/limiter"
 )
 
 var errSniffingTimeout = errors.New("timeout on sniffing")

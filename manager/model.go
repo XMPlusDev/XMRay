@@ -1,8 +1,8 @@
 package manager
 
 import (
-	"github.com/xmplusdev/xmplus-server/api"
-	"github.com/xmplusdev/xmplus-server/node"
+	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/node"
 )
 
 type Config struct {

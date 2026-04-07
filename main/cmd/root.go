@@ -15,7 +15,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/xmplusdev/xmplus-server/manager"
+	"github.com/xmplusdev/xmray/manager"
 )
 
 var (

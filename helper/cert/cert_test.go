@@ -3,7 +3,7 @@ package cert
 import (
 	"testing"
 
-	"github.com/xmplusdev/xmplus-server/helper/cert"
+	"github.com/xmplusdev/xmray/helper/cert"
 )
 
 func TestLegoClient(t *testing.T) {

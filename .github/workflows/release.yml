@@ -72,15 +72,15 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build XMPlus
+      - name: Build XMRay
         run: |
           mkdir -p build_assets
-          go build -v -o build_assets/XMPlus -trimpath -ldflags "-s -w -buildid=" ./main
+          go build -v -o build_assets/XMRay -trimpath -ldflags "-s -w -buildid=" ./main
           
-      - name: Build Mips softfloat XMPlus
+      - name: Build Mips softfloat XMRay
         if: matrix.goarch == 'mips' || matrix.goarch == 'mipsle'
         run: |
-         GOMIPS=softfloat go build -v -o build_assets/XMPlus_softfloat -trimpath -ldflags "-s -w -buildid=" ./main
+         GOMIPS=softfloat go build -v -o build_assets/XMRay_softfloat -trimpath -ldflags "-s -w -buildid=" ./main
 
       - name: Prepare to release
         run: |
@@ -105,9 +105,9 @@ jobs:
         run: |
           pushd build_assets || exit 1
           touch -mt $(date +%Y01010000) *
-          zip -9vr ../XMPlus-$ASSET_NAME.zip .
+          zip -9vr ../XMRay-$ASSET_NAME.zip .
           popd || exit 1
-          FILE=./XMPlus-$ASSET_NAME.zip
+          FILE=./XMRay-$ASSET_NAME.zip
           DGST=$FILE.dgst
           for METHOD in {"md5","sha1","sha256","sha512"}
           do
@@ -115,18 +115,18 @@ jobs:
           done
       - name: Change the name
         run: |
-          mv build_assets XMPlus-$ASSET_NAME
+          mv build_assets XMRay-$ASSET_NAME
       #- name: Upload files to Artifacts
       #  uses: actions/upload-artifact@v4
       #  with:
-      #    name: XMPlus-${{ steps.get_filename.outputs.ASSET_NAME }}
+      #    name: XMRay-${{ steps.get_filename.outputs.ASSET_NAME }}
       #    path: |
-      #      ./XMPlus-${{ steps.get_filename.outputs.ASSET_NAME }}/*
+      #      ./XMRay-${{ steps.get_filename.outputs.ASSET_NAME }}/*
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         if: github.event_name == 'release'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./XMPlus-${{ steps.get_filename.outputs.ASSET_NAME }}.zip*
+          file: ./XMRay-${{ steps.get_filename.outputs.ASSET_NAME }}.zip*
           tag: ${{ github.ref }}
           file_glob: true

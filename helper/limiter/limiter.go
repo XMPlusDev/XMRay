@@ -16,7 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
 	
-	"github.com/xmplusdev/xmplus-server/api"
+	"github.com/xmplusdev/xmray/api"
 )
 
 type SubscriptionInfo struct {
@@ -122,6 +122,15 @@ func (l *Limiter) DeleteInboundLimiter(tag string) error {
 	return nil
 }
 
+func (l *Limiter) DeleteSubscriptionBuckets(tag string, emails []string) {
+	if value, ok := l.InboundInfo.Load(tag); ok {
+		inboundInfo := value.(*InboundInfo)
+		for _, email := range emails {
+			inboundInfo.BucketHub.Delete(email)
+		}
+	}
+}
+
 func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 	var onlineIP []api.OnlineIP
 
@@ -199,7 +208,7 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 						}
 
 						if len(remaining) == 0 {
-							(*ipMap)[ip] = []IPData{}
+							delete(*ipMap, ip)
 						} else {
 							(*ipMap)[ip] = remaining
 						}
@@ -338,15 +347,9 @@ func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string][]IPDa
 
 // determineRate returns the minimum non-zero rate
 func determineRate(nodeLimit, SubscriptionLimit uint64) (limit uint64) {
-	if nodeLimit <= 0 && SubscriptionLimit <= 0 {
+	if nodeLimit == 0 && SubscriptionLimit == 0 {
 		return 0
 	} else {
-		if nodeLimit < 0 {
-			nodeLimit = 0 
-		}
-		if SubscriptionLimit < 0 {
-			SubscriptionLimit = 0 
-		}
 		if nodeLimit == 0 && SubscriptionLimit > 0 {
 			return SubscriptionLimit
 		} else if nodeLimit > 0 && SubscriptionLimit == 0 {

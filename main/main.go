@@ -3,7 +3,7 @@ package main
 import (
 	log "github.com/sirupsen/logrus"
 
-	"github.com/xmplusdev/xmplus-server/main/cmd"
+	"github.com/xmplusdev/xmray/main/cmd"
 )
 
 func main() {

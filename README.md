@@ -300,13 +300,6 @@ Nodes:
       "mtu": 1350
     }
   },
-  "maskSettings": {
-    "udp": [
-      {
-        "type": "xicmp"
-      }
-    ]
-  },
   "socketSettings": {
     "acceptProxyProtocol": false,
     "domainStrategy": "asis",
@@ -336,16 +329,6 @@ Nodes:
       "version": 2
     }
   },
-  "maskSettings": {
-    "udp": [
-      {
-        "type": "salamander",
-        "settings": {
-          "password": "your-password-here"
-        }
-      }
-    ]
-  },
   "socketSettings": {
     "acceptProxyProtocol": false,
     "domainStrategy": "asis",
@@ -359,6 +342,86 @@ Nodes:
   }
 }
 ```
+
+### Mask Settings
+
+`maskSettings` is optional and applies transport-level obfuscation. All three fields (`tcp`, `udp`, `quicParams`) are optional and can be used independently or together.
+
+#### TCP mask types: `header-custom`, `fragment`, `sudoku`
+#### UDP mask types: `header-custom`, `header-dns`, `header-dtls`, `header-srtp`, `header-utp`, `header-wechat`, `header-wireguard`, `mkcp-original`, `mkcp-aes128gcm`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`
+
+```json
+{
+  "maskSettings": {
+    "tcp": [
+      {
+        "type": "fragment",
+        "settings": {
+          "packets": "tlshello",
+          "length": { "from": 100, "to": 200 },
+          "delay": { "from": 10, "to": 20 },
+          "maxSplit": { "from": 0, "to": 0 }
+        }
+      }
+    ],
+    "udp": [
+      {
+        "type": "noise",
+        "settings": {
+          "reset": { "from": 0, "to": 0 },
+          "noise": [
+            {
+              "type": "str",
+              "packet": "GET / HTTP/1.1\r\n",
+              "rand": { "from": 0, "to": 0 },
+              "delay": { "from": 10, "to": 50 }
+            }
+          ]
+        }
+      }
+    ],
+    "quicParams": {
+      "congestion": "bbr",
+      "debug": false,
+	  "bbrProfile": "standard",
+      "brutalUp": "100mbps",
+      "brutalDown": "100mbps",
+      "udpHop": {
+        "ports": [443, 8443],
+        "interval": { "from": 10, "to": 30 }
+      },
+      "initStreamReceiveWindow": 8388608,
+      "maxStreamReceiveWindow": 8388608,
+      "initConnectionReceiveWindow": 20971520,
+      "maxConnectionReceiveWindow": 20971520,
+      "maxIdleTimeout": 30,
+      "keepAlivePeriod": 10,
+      "disablePathMTUDiscovery": false,
+      "maxIncomingStreams": 100
+    }
+  }
+}
+```
+
+`quicParams` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `congestion` | string | Congestion control algorithm, e.g. `"bbr"`, `"cubic"` |
+| `debug` | bool | Enable debug mode |
+| `bbrProfile` | string | Congestion control algorithm, e.g. `"conservative"`, `"standard"`, `"aggressive"` |
+| `brutalUp` | string | Upload bandwidth for brutal congestion, e.g. `"100mbps"`, `"1gbps"` |
+| `brutalDown` | string | Download bandwidth for brutal congestion |
+| `udpHop.ports` | array/string | Port list for UDP hopping |
+| `udpHop.interval` | object | Hop interval range in seconds `{ "from": N, "to": N }` |
+| `initStreamReceiveWindow` | uint64 | Initial stream receive window size (bytes) |
+| `maxStreamReceiveWindow` | uint64 | Max stream receive window size (bytes) |
+| `initConnectionReceiveWindow` | uint64 | Initial connection receive window size (bytes) |
+| `maxConnectionReceiveWindow` | uint64 | Max connection receive window size (bytes) |
+| `maxIdleTimeout` | int64 | Max idle timeout in seconds |
+| `keepAlivePeriod` | int64 | Keep-alive period in seconds |
+| `disablePathMTUDiscovery` | bool | Disable path MTU discovery |
+| `maxIncomingStreams` | int64 | Max number of incoming streams |
 
 ### Security Settings
 
@@ -379,6 +442,16 @@ Nodes:
     "pinnedPeerCertSha256": "",
     "echServerKeys": "",
     "echConfigList": ""
+  },
+  "maskSettings": {
+    "udp": [
+      {
+        "type": "salamander",
+        "settings": {
+          "password": "your-password-here"
+        }
+      }
+    ]
   }
 }
 ```
@@ -401,6 +474,16 @@ Nodes:
     "minClientVer": "",
     "maxClientVer": "",
     "maxTimeDiff": 0
+  },
+  "maskSettings": {
+    "udp": [
+      {
+        "type": "salamander",
+        "settings": {
+          "password": "your-password-here"
+        }
+      }
+    ]
   }
 }
 ```

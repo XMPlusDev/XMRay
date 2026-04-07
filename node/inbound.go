@@ -15,8 +15,8 @@ import (
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
 	
-	"github.com/xmplusdev/xmplus-server/api"
-	"github.com/xmplusdev/xmplus-server/helper/cert"
+	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/helper/cert"
 )
 
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {
@@ -313,7 +313,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			return nil, fmt.Errorf("Unsupported transport protocol: %v", networkType)	
 	}	
 	
-	// FIXED: Check nil BEFORE accessing Enabled
 	if nodeInfo.MaskSettings != nil && nodeInfo.MaskSettings.Enabled {
 		finalMaskSettings := &conf.FinalMask{}
 
@@ -331,6 +330,10 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				tcpMask.Settings = nodeInfo.MaskSettings.TCP.Settings
 			}
 			finalMaskSettings.Tcp = []conf.Mask{tcpMask}
+		}
+
+		if nodeInfo.MaskSettings.QuicParams != nil {
+			finalMaskSettings.QuicParams = buildQuicParams(nodeInfo.MaskSettings.QuicParams)
 		}
 
 		streamSetting.FinalMask = finalMaskSettings

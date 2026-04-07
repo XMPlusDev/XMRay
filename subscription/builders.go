@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/xmplusdev/xmplus-server/api"
+	"github.com/xmplusdev/xmray/api"
 	
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/serial"

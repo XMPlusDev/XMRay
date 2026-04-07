@@ -124,14 +124,42 @@ type RealitySettings struct {
 }
 
 type MaskSettings struct {
-	Enabled bool
-	TCP     *MaskEntry
-	UDP     *MaskEntry
+	Enabled    bool
+	TCP        *MaskEntry
+	UDP        *MaskEntry
+	QuicParams *QuicParamsSettings
 }
 
 type MaskEntry struct {
 	Type     string
 	Settings *json.RawMessage
+}
+
+type Int32RangeSettings struct {
+	From int32
+	To   int32
+}
+
+type UdpHopSettings struct {
+	Ports    json.RawMessage
+	Interval *Int32RangeSettings
+}
+
+type QuicParamsSettings struct {
+	Congestion                  string
+	Debug                       bool
+	BbrProfile                  string  // conservative, standard, aggressive
+	BrutalUp                    string // bandwidth string e.g. "100mbps"
+	BrutalDown                  string // bandwidth string e.g. "100mbps"
+	UdpHop                      *UdpHopSettings
+	InitStreamReceiveWindow     uint64
+	MaxStreamReceiveWindow      uint64
+	InitConnectionReceiveWindow uint64
+	MaxConnectionReceiveWindow  uint64
+	MaxIdleTimeout              int64
+	KeepAlivePeriod             int64
+	DisablePathMTUDiscovery     bool
+	MaxIncomingStreams           int64
 }
 
 type SocketSettings struct {

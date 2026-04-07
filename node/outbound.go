@@ -8,7 +8,7 @@ import (
 	"github.com/xtls/xray-core/infra/conf"
 	"github.com/xtls/xray-core/common/net"
 	
-	"github.com/xmplusdev/xmplus-server/api"
+	"github.com/xmplusdev/xmray/api"
 )
 
 
@@ -251,7 +251,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		streamSetting.HysteriaSettings = hysteriaSettings
 	}
 	
-	// FIXED: Check nil BEFORE accessing Enabled
 	if nodeInfo.MaskSettings != nil && nodeInfo.MaskSettings.Enabled {
 		finalMaskSettings := &conf.FinalMask{}
 
@@ -269,6 +268,10 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 				tcpMask.Settings = nodeInfo.MaskSettings.TCP.Settings
 			}
 			finalMaskSettings.Tcp = []conf.Mask{tcpMask}
+		}
+
+		if nodeInfo.MaskSettings.QuicParams != nil {
+			finalMaskSettings.QuicParams = buildQuicParams(nodeInfo.MaskSettings.QuicParams)
 		}
 
 		streamSetting.FinalMask = finalMaskSettings

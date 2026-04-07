@@ -116,8 +116,8 @@ func (m *Manager) Add(task *PeriodicTask) {
 
 // StartAll starts all tasks in the manager
 func (m *Manager) StartAll() error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	for _, t := range m.tasks {
 		if err := t.Start(); err != nil {
@@ -131,8 +131,8 @@ func (m *Manager) StartAll() error {
 
 // CloseAll stops all tasks in the manager
 func (m *Manager) CloseAll() error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	var lastErr error
 	for _, t := range m.tasks {

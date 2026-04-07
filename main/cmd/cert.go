@@ -4,7 +4,7 @@ import (
 	"fmt"
 	
 	"github.com/spf13/cobra"
-	"github.com/xmplusdev/xmplus-server/helper/cert"
+	"github.com/xmplusdev/xmray/helper/cert"
 )
 
 var (

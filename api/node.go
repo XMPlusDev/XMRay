@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"errors"
-	"math"
 	"math/rand"
 	"strconv"
     
@@ -100,13 +99,6 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	if err := c.parseNetworkSettings(transportData, nodeInfo); err != nil {
 		return nil, err
 	}
-	
-	// Parse mask settings
-	if maskSettings, ok := transportData.CheckGet("maskSettings"); ok {
-		if err := c.parseMaskSettings(maskSettings, nodeInfo); err != nil {
-			return nil, err
-		}
-	}
 
 	// Parse socket settings
 	if socketSettings, ok := transportData.CheckGet("socketSettings"); ok {
@@ -128,6 +120,13 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 
 	if err := c.parseSecuritySettings(securityData, nodeInfo); err != nil {
 		return nil, err
+	}
+	
+	// Parse mask settings
+	if maskSettings, ok := securityData.CheckGet("maskSettings"); ok {
+		if err := c.parseMaskSettings(maskSettings, nodeInfo); err != nil {
+			return nil, err
+		}
 	}
 
 	// Parse blocking rules
@@ -484,13 +483,6 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	if err := c.parseRelayNetworkSettings(transportData, nodeInfo); err != nil {
 		return nil, err
 	}
-	
-	// Parse mask settings
-	if maskSettings, ok := transportData.CheckGet("maskSettings"); ok {
-		if err := c.parseRelayMaskSettings(maskSettings, nodeInfo); err != nil {
-			return nil, err
-		}
-	}
 
 	// Parse relay security settings
 	security, err := s.RSecuritySettings.MarshalJSON()
@@ -501,6 +493,13 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	securityData, err := simplejson.NewJson(security)
 	if err != nil {
 		return nil, err
+	}
+	
+	// Parse mask settings
+	if maskSettings, ok := securityData.CheckGet("maskSettings"); ok {
+		if err := c.parseRelayMaskSettings(maskSettings, nodeInfo); err != nil {
+			return nil, err
+		}
 	}
 
 	c.parseRelaySecuritySettings(securityData, nodeInfo)
@@ -805,6 +804,7 @@ func (c *Client) parseRelaySecuritySettings(securityData *simplejson.Json, nodeI
 func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) error {
 	hasTCP := false
 	hasUDP := false
+	var quicParams *QuicParamsSettings
 
 	if maskTCP, isOK := maskSettings.CheckGet("tcp"); isOK {
 		maskArray, err := maskTCP.Array()
@@ -822,7 +822,15 @@ func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) err
 		hasUDP = len(maskArray) > 0
 	}
 
-	if !hasTCP && !hasUDP {
+	if qp, isOK := maskSettings.CheckGet("quicParams"); isOK {
+		parsed, err := parseQuicParams(qp)
+		if err != nil {
+			return fmt.Errorf("quicParams: %w", err)
+		}
+		quicParams = parsed
+	}
+
+	if !hasTCP && !hasUDP && quicParams == nil {
 		return nil
 	}
 
@@ -846,7 +854,77 @@ func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) err
 		(*ms).UDP = parsed
 	}
 
+	(*ms).QuicParams = quicParams
+
 	return nil
+}
+
+func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
+	q := &QuicParamsSettings{}
+
+	if v, err := qp.Get("congestion").String(); err == nil {
+		q.Congestion = v
+	}
+	if v, err := qp.Get("debug").Bool(); err == nil {
+		q.Debug = v
+	}
+	if v, err := qp.Get("bbrProfile ").String(); err == nil {
+		q.BrutalUp = v
+	}
+	if v, err := qp.Get("brutalUp").String(); err == nil {
+		q.BbrProfile = v
+	}
+	if v, err := qp.Get("brutalDown").String(); err == nil {
+		q.BrutalDown = v
+	}
+	if v, err := qp.Get("initStreamReceiveWindow").Uint64(); err == nil {
+		q.InitStreamReceiveWindow = v
+	}
+	if v, err := qp.Get("maxStreamReceiveWindow").Uint64(); err == nil {
+		q.MaxStreamReceiveWindow = v
+	}
+	if v, err := qp.Get("initConnectionReceiveWindow").Uint64(); err == nil {
+		q.InitConnectionReceiveWindow = v
+	}
+	if v, err := qp.Get("maxConnectionReceiveWindow").Uint64(); err == nil {
+		q.MaxConnectionReceiveWindow = v
+	}
+	if v, err := qp.Get("maxIdleTimeout").Int64(); err == nil {
+		q.MaxIdleTimeout = v
+	}
+	if v, err := qp.Get("keepAlivePeriod").Int64(); err == nil {
+		q.KeepAlivePeriod = v
+	}
+	if v, err := qp.Get("disablePathMTUDiscovery").Bool(); err == nil {
+		q.DisablePathMTUDiscovery = v
+	}
+	if v, err := qp.Get("maxIncomingStreams").Int64(); err == nil {
+		q.MaxIncomingStreams = v
+	}
+
+	if udpHopData, isOK := qp.CheckGet("udpHop"); isOK {
+		hop := &UdpHopSettings{}
+		if portsData, portsOK := udpHopData.CheckGet("ports"); portsOK {
+			raw, err := portsData.MarshalJSON()
+			if err != nil {
+				return nil, fmt.Errorf("udpHop.ports: %w", err)
+			}
+			hop.Ports = json.RawMessage(raw)
+		}
+		if intervalData, intervalOK := udpHopData.CheckGet("interval"); intervalOK {
+			from, errFrom := intervalData.Get("from").Int()
+			to, errTo := intervalData.Get("to").Int()
+			if errFrom == nil && errTo == nil {
+				hop.Interval = &Int32RangeSettings{
+					From: int32(from),
+					To:   int32(to),
+				}
+			}
+		}
+		q.UdpHop = hop
+	}
+
+	return q, nil
 }
 
 func parseSingleMask(mask *simplejson.Json) (*MaskEntry, error) {
@@ -861,45 +939,12 @@ func parseSingleMask(mask *simplejson.Json) (*MaskEntry, error) {
 		return entry, nil
 	}
 
-	settingsMap, err := settings.Map()
+	raw, err := settings.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
-
-	normalizedMap := make(map[string]interface{})
-	for k, v := range settingsMap {
-		if k == "id" {
-			switch val := v.(type) {
-			case json.Number:
-				n, err := strconv.ParseUint(val.String(), 10, 16)
-				if err != nil {
-					return nil, fmt.Errorf("invalid id value %q: must be uint16: %w", val, err)
-				}
-				normalizedMap[k] = uint16(n)
-			case float64:
-				if val < 0 || val > 65535 || val != math.Trunc(val) {
-					return nil, fmt.Errorf("invalid id value %v: must be uint16", val)
-				}
-				normalizedMap[k] = uint16(val)
-			case string:
-				n, err := strconv.ParseUint(val, 10, 16)
-				if err != nil {
-					return nil, fmt.Errorf("invalid id value %q: must be uint16: %w", val, err)
-				}
-				normalizedMap[k] = uint16(n)
-			default:
-				return nil, fmt.Errorf("unexpected type %T for id field", v)
-			}
-		} else {
-			normalizedMap[k] = v
-		}
-	}
-
-	settingsBytes, err := json.Marshal(normalizedMap)
-	if err != nil {
-		return nil, err
-	}
-	entry.Settings = (*json.RawMessage)(&settingsBytes)
+	rm := json.RawMessage(raw)
+	entry.Settings = &rm
 
 	return entry, nil
 }

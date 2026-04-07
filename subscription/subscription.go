@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/xmplusdev/xmplus-server/api"
-	"github.com/xmplusdev/xmplus-server/app/dispatcher"
+	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/app/dispatcher"
 	
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/proxy"
@@ -261,7 +261,7 @@ func (m *Manager) removeInboundSubscriptions(emails []string, tag string) error 
 
 	userManager, ok := inboundInstance.GetInbound().(proxy.UserManager)
 	if !ok {
-		return fmt.Errorf("handler %s is not implement proxy.UserManager", err)
+		return fmt.Errorf("handler %s is not implement proxy.UserManager", tag)
 	}
 	for _, email := range emails {
 		err = userManager.RemoveUser(context.Background(), email)

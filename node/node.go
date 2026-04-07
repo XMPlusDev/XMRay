@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xmplusdev/xmplus-server/api"
-	"github.com/xmplusdev/xmplus-server/helper/limiter"
-	"github.com/xmplusdev/xmplus-server/app/dispatcher" 
+	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/helper/limiter"
+	"github.com/xmplusdev/xmray/app/dispatcher" 
 	
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
@@ -368,7 +368,7 @@ func (m *Manager) addOutbound(config *core.OutboundHandlerConfig) error {
 	}
 	handler, ok := rawHandler.(outbound.Handler)
 	if !ok {
-		return fmt.Errorf("not an InboundHandler: %s", err)
+		return fmt.Errorf("not an OutboundHandler")
 	}
 	if err := m.obm.AddHandler(context.Background(), handler); err != nil {
 		return err
@@ -399,4 +399,42 @@ func (m *Manager) UpdateInboundLimiter(tag string, updatedSubscriptionList *[]ap
 func (m *Manager) DeleteInboundLimiter(tag string) error {
 	err := m.dispatcher.Limiter.DeleteInboundLimiter(tag)
 	return err
+}
+
+func (m *Manager) DeleteSubscriptionBuckets(tag string, emails []string) {
+	m.dispatcher.Limiter.DeleteSubscriptionBuckets(tag, emails)
+}
+
+// buildQuicParams converts api.QuicParamsSettings to conf.QuicParamsConfig
+func buildQuicParams(q *api.QuicParamsSettings) *conf.QuicParamsConfig {
+	qp := &conf.QuicParamsConfig{
+		Congestion:                  q.Congestion,
+		Debug:                       q.Debug,
+		BbrProfile:                  q.BbrProfile,
+		BrutalUp:                    conf.Bandwidth(q.BrutalUp),
+		BrutalDown:                  conf.Bandwidth(q.BrutalDown),
+		InitStreamReceiveWindow:     q.InitStreamReceiveWindow,
+		MaxStreamReceiveWindow:      q.MaxStreamReceiveWindow,
+		InitConnectionReceiveWindow: q.InitConnectionReceiveWindow,
+		MaxConnectionReceiveWindow:  q.MaxConnectionReceiveWindow,
+		MaxIdleTimeout:              q.MaxIdleTimeout,
+		KeepAlivePeriod:             q.KeepAlivePeriod,
+		DisablePathMTUDiscovery:     q.DisablePathMTUDiscovery,
+		MaxIncomingStreams:           q.MaxIncomingStreams,
+	}
+
+	if q.UdpHop != nil {
+		hop := conf.UdpHop{
+			PortList: q.UdpHop.Ports,
+		}
+		if q.UdpHop.Interval != nil {
+			hop.Interval = &conf.Int32Range{
+				From: q.UdpHop.Interval.From,
+				To:   q.UdpHop.Interval.To,
+			}
+		}
+		qp.UdpHop = hop
+	}
+
+	return qp
 }

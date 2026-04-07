@@ -8,11 +8,11 @@ import (
 	
 	"github.com/xtls/xray-core/core"
 	
-	"github.com/xmplusdev/xmplus-server/api"
-	"github.com/xmplusdev/xmplus-server/node"
-	"github.com/xmplusdev/xmplus-server/subscription"
-	"github.com/xmplusdev/xmplus-server/helper/cert"
-	"github.com/xmplusdev/xmplus-server/helper/task"
+	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/node"
+	"github.com/xmplusdev/xmray/subscription"
+	"github.com/xmplusdev/xmray/helper/cert"
+	"github.com/xmplusdev/xmray/helper/task"
 )
 
 type ManagerInterface interface {
@@ -346,6 +346,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
 				} else {
 					log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
+					c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
 				}
 			}
 			
@@ -369,6 +370,9 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				deletedEmail := subscription.FormatEmails(modified, c.Tag)
 				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
 					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
+				} else {
+					log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
+					c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
 				}
 				
 				// Add modified subscription

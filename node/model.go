@@ -1,8 +1,8 @@
 package node
 
 import (
-	"github.com/xmplusdev/xmplus-server/helper/cert"
-	"github.com/xmplusdev/xmplus-server/helper/limiter"
+	"github.com/xmplusdev/xmray/helper/cert"
+	"github.com/xmplusdev/xmray/helper/limiter"
 )
 
 type Config struct {

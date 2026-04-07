@@ -6,7 +6,7 @@ import (
 	
 	"github.com/xtls/xray-core/app/router"
 	"github.com/xtls/xray-core/infra/conf"
-	"github.com/xmplusdev/xmplus-server/api"
+	"github.com/xmplusdev/xmray/api"
 )
 
 func RelayRouterBuilder(tag string, relayTag string, subscription *api.SubscriptionInfo) (*router.Config, error) {
