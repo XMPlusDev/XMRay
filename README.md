@@ -1,5 +1,5 @@
 # XMRay
-Backend for NuxtJs version of XMPlus management panel
+XRay-core server for NuxtJs version of XMPlus management panel
 
 #### Config directory
 ```

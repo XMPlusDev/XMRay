@@ -94,7 +94,7 @@ install_acme() {
     curl https://get.acme.sh | sh
 }
 
-install_XMPlus() {
+install_XMRay() {
     if [[ -e /usr/local/XMRay/ ]]; then
         rm /usr/local/XMRay/ -rf
     fi
@@ -112,20 +112,20 @@ install_XMPlus() {
 	cd /usr/local/XMRay/
 
     if  [ $# == 0 ] ;then
-        last_version=$(curl -Ls "https://api.github.com/repos/XMPlusDev/XMPlusServer/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        last_version=$(curl -Ls "https://api.github.com/repos/XMPlusDev/XMRay/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$last_version" ]]; then
             echo -e "${red}Failed to detect the XMRay version, it may be because of Github API limit, please try again later, or manually specify the XMRay version to install${plain}"
             exit 1
         fi
         echo -e "XMRay latest version detected：${last_version}，Start Installation"
-        wget -N --no-check-certificate -O /usr/local/XMRay/XMRay-linux.zip https://github.com/XMPlusDev/XMPlusServer/releases/download/${last_version}/XMRay-linux-${kernelArch}.zip
+        wget -N --no-check-certificate -O /usr/local/XMRay/XMRay-linux.zip https://github.com/XMPlusDev/XMRay/releases/download/${last_version}/XMRay-linux-${kernelArch}.zip
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Downloading XMRay failed，Please make sure your server can download github file${plain}"
             exit 1
         fi
     else
         last_version=$1
-        url="https://github.com/XMPlusDev/XMPlusServer/releases/download/${last_version}/XMRay-linux-${kernelArch}.zip"
+        url="https://github.com/XMPlusDev/XMRay/releases/download/${last_version}/XMRay-linux-${kernelArch}.zip"
         echo -e "Start Installation XMRay v$1"
         wget -N --no-check-certificate -O /usr/local/XMRay/XMRay-linux.zip ${url}
         if [[ $? -ne 0 ]]; then
@@ -210,7 +210,7 @@ install_XMPlus() {
         fi
     fi
     
-    curl -o /usr/bin/XMRay -Ls https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/XMRay.sh
+    curl -o /usr/bin/XMRay -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/XMRay.sh
     chmod +x /usr/bin/XMRay
     ln -s /usr/bin/XMRay /usr/bin/xmray 
     chmod +x /usr/bin/xmray
@@ -249,4 +249,4 @@ install_XMPlus() {
 echo -e "${green}Start Installation${plain}"
 install_base
 #install_acme
-install_XMPlus $1
+install_XMRay $1
