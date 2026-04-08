@@ -21,7 +21,7 @@ import (
 var (
 	cfgFile string
 	rootCmd = &cobra.Command{
-		Use: "XMPlus",
+		Use: "XMRay",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := run(); err != nil {
 				log.Fatal(err)
@@ -31,7 +31,7 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Config file for XMPlus.")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Config file for XMRay.")
 }
 
 func getConfig() *viper.Viper {
@@ -45,7 +45,7 @@ func getConfig() *viper.Viper {
 		config.SetConfigName(configNameOnly)
 		config.SetConfigType(strings.TrimPrefix(configFileExt, "."))
 		config.AddConfigPath(configPath)
-		// Set ASSET Path and Config Path for XMPlus
+		// Set ASSET Path and Config Path for XMRay
 		os.Setenv("XRAY_LOCATION_ASSET", configPath)
 		os.Setenv("XRAY_LOCATION_CONFIG", configPath)
 	} else {
@@ -89,8 +89,8 @@ func run() error {
 		// Check if it's a reload signal
 		if err.Error() == "reload" {
 			
-			// Execute terminal command "xmplus restart"
-			cmd := exec.Command("xmplus", "restart")
+			// Execute terminal command "xmray restart"
+			cmd := exec.Command("xmray", "restart")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			
