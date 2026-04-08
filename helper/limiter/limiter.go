@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"log"
 
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
