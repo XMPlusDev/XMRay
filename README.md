@@ -8,7 +8,7 @@ cd /etc/XMRay
 
 ### Onclick XMRay backennd Install
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/XMRayDev/XMRayServer/script/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/install.sh)
 ```
 
 ### /etc/XMRay/config.yml
