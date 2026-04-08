@@ -1,8 +1,7 @@
-version: '3'
 services: 
-  xmplus: 
-    image: ghcr.io/xmplusdev/xmplus-erver:latest
+  xmray: 
+    image: ghcr.io/xmplusdev/xmray:latest
     volumes:
-      - /etc/XMPlus/:/etc/XMPlus/
+      - /etc/XMRay/:/etc/XMRay/
     restart: always
     network_mode: host

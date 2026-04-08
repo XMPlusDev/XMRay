@@ -84,7 +84,7 @@ confirm() {
 }
 
 confirm_restart() {
-    confirm "Whether to restart XMPlus " "y"
+    confirm "Whether to restart XMRay " "y"
     if [[ $? == 0 ]]; then
         restart
     else
@@ -98,7 +98,7 @@ before_show_menu() {
 }
 
 install() {
-    bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/install.sh)
     if [[ $? == 0 ]]; then
         if [[ $# == 0 ]]; then
             start
@@ -110,20 +110,20 @@ install() {
 
 update() {
     version=$2
-    bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/install.sh) $version
+    bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/install.sh) $version
 }
 
 config() {
-    echo "XMPlus will automatically try to restart after modifying the configuration"
-    vi /etc/XMPlus/config.yml
+    echo "XMRay will automatically try to restart after modifying the configuration"
+    vi /etc/XMRay/config.yml
     sleep 2
     check_status
     case $? in
         0)
-            echo -e "XMPlus Status: ${green}Running${plain}"
+            echo -e "XMRay Status: ${green}Running${plain}"
             ;;
         1)
-            echo -e "It is detected that you have not started XMPlus or XMPlus failed to restart automatically, check the log？[Y/n]" && echo
+            echo -e "It is detected that you have not started XMRay or XMRay failed to restart automatically, check the log？[Y/n]" && echo
             read -e -p "(Default: y):" yn
             [[ -z ${yn} ]] && yn="y"
             if [[ ${yn} == [Yy] ]]; then
@@ -131,12 +131,12 @@ config() {
             fi
             ;;
         2)
-            echo -e "XMPlus Status: ${red}Not Installed${plain}"
+            echo -e "XMRay Status: ${red}Not Installed${plain}"
     esac
 }
 
 uninstall() {
-    confirm "Are you sure you want to uninstall XMPlus? " "n"
+    confirm "Are you sure you want to uninstall XMRay? " "n"
     if [[ $? != 0 ]]; then
         if [[ $# == 0 ]]; then
             show_menu
@@ -144,24 +144,24 @@ uninstall() {
         return 0
     fi
 	if [ -e "/etc/systemd/system/" ] ; then
-		systemctl stop XMPlus
-		systemctl disable XMPlus
-		rm /etc/systemd/system/XMPlus.service -f
+		systemctl stop XMRay
+		systemctl disable XMRay
+		rm /etc/systemd/system/XMRay.service -f
 		systemctl daemon-reload
 		systemctl reset-failed
 	else
-		rc-service xmplus stop
-		rc-update delete xmplus default 
+		rc-service XMRay stop
+		rc-update delete XMRay default 
 		rc-update --update
-		rm /etc/init.d/xmplus/xmplus.rc -f
+		rm /etc/init.d/XMRay/XMRay.rc -f
 		systemctl daemon-reload
 	fi
 	
-    rm /etc/XMPlus/ -rf
-    rm /usr/local/XMPlus/ -rf
+    rm /etc/XMRay/ -rf
+    rm /usr/local/XMRay/ -rf
 
     echo ""
-    echo -e "The uninstallation is successful. If you want to delete this script, run ssh command ${green}rm -rf /usr/bin/XMPlus -f ${plain} to delete"
+    echo -e "The uninstallation is successful. If you want to delete this script, run ssh command ${green}rm -rf /usr/bin/XMRay -f ${plain} to delete"
     echo ""
 
     if [[ $# == 0 ]]; then
@@ -173,15 +173,15 @@ start() {
     check_status
     if [[ $? == 0 ]]; then
         echo ""
-        echo -e "${green}XMPlus aready running, no need to start again, if you need to restart, please select restart${plain}"
+        echo -e "${green}XMRay aready running, no need to start again, if you need to restart, please select restart${plain}"
     else
-		systemctl start XMPlus
+		systemctl start XMRay
 		sleep 2
 		check_status
 		if [[ $? == 0 ]]; then
-			echo -e "${green}XMPlus startup is successful, please use XMPlus log to view the operation log${plain}"
+			echo -e "${green}XMRay startup is successful, please use XMRay log to view the operation log${plain}"
 		else
-			echo -e "${red}XMPlus may fail to start, please use XMPlus log to check the log information later${plain}"
+			echo -e "${red}XMRay may fail to start, please use XMRay log to check the log information later${plain}"
 		fi
     fi
 
@@ -191,13 +191,13 @@ start() {
 }
 
 stop() {
-	systemctl stop XMPlus
+	systemctl stop XMRay
 	sleep 2
 	check_status
 	if [[ $? == 1 ]]; then
-		echo -e "${green}XMPlus stop successful${plain}"
+		echo -e "${green}XMRay stop successful${plain}"
 	else
-		echo -e "${red}XMPlus stop failed, probably because the stop time exceeded two seconds, please check the log information later${plain}"
+		echo -e "${red}XMRay stop failed, probably because the stop time exceeded two seconds, please check the log information later${plain}"
 	fi
 
     if [[ $# == 0 ]]; then
@@ -206,13 +206,13 @@ stop() {
 }
 
 restart() {
-	systemctl restart XMPlus
+	systemctl restart XMRay
 	sleep 2
 	check_status
 	if [[ $? == 0 ]]; then
-		echo -e "${green}XMPlus restart is successful, please use XMPlus log to view the operation log${plain}"
+		echo -e "${green}XMRay restart is successful, please use XMRay log to view the operation log${plain}"
 	else
-		echo -e "${red}XMPlus may fail to start, please use XMPlus log to check the log information later${plain}"
+		echo -e "${red}XMRay may fail to start, please use XMRay log to check the log information later${plain}"
 	fi
 
     if [[ $# == 0 ]]; then
@@ -221,18 +221,18 @@ restart() {
 }
 
 status() {
-	systemctl status XMPlus --no-pager -l
+	systemctl status XMRay --no-pager -l
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
 enable() {
-	systemctl enable XMPlus
+	systemctl enable XMRay
 	if [[ $? == 0 ]]; then
-		echo -e "${green}start XMPlus on system boot successfully enabled${plain}"
+		echo -e "${green}start XMRay on system boot successfully enabled${plain}"
 	else
-		echo -e "${red}start XMPlus on system boot failed to enable${plain}"
+		echo -e "${red}start XMRay on system boot failed to enable${plain}"
 	fi
 
     if [[ $# == 0 ]]; then
@@ -241,11 +241,11 @@ enable() {
 }
 
 disable() {
-	systemctl disable XMPlus
+	systemctl disable XMRay
 	if [[ $? == 0 ]]; then
-		echo -e "${green}diable XMPlus on system boot successfull${plain}"
+		echo -e "${green}diable XMRay on system boot successfull${plain}"
 	else
-		echo -e "${red}diable XMPlus on system boot failed${plain}"
+		echo -e "${red}diable XMRay on system boot failed${plain}"
 	fi
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -253,7 +253,7 @@ disable() {
 }
 
 show_log() {
-    journalctl -u XMPlus.service -e --no-pager -f
+    journalctl -u XMRay.service -e --no-pager -f
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
@@ -264,31 +264,31 @@ install_bbr() {
 }
 
 update_script() {
-	systemctl stop XMPlus
-	rm -rf /usr/bin/XMPlus
-	rm -rf /usr/bin/xmplus
+	systemctl stop XMRay
+	rm -rf /usr/bin/XMRay
+	rm -rf /usr/bin/XMRay
 	systemctl daemon-reload
-    wget -O /usr/bin/XMPlus -N --no-check-certificate https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/XMPlus.sh
+    wget -O /usr/bin/XMRay -N --no-check-certificate https://raw.githubusercontent.com/XMPlusDev/XMRay/script/XMRay.sh
     if [[ $? != 0 ]]; then
         echo ""
         echo -e "${red}Failed to download the script, please check whether the machine can connect Github${plain}"
         before_show_menu
     else
-        chmod +x /usr/bin/XMPlus
-		ln -s /usr/bin/XMPlus /usr/bin/xmplus 
-		chmod +x /usr/bin/xmplus
-		systemctl start XMPlus
+        chmod +x /usr/bin/XMRay
+		ln -s /usr/bin/XMRay /usr/bin/xmray 
+		chmod +x /usr/bin/XMRay
+		systemctl start XMRay
         echo -e "${green}The upgrade script was successful, please run the script again${plain}" && exit 0
     fi
 }
 
 # 0: running, 1: not running, 2: not installed
 check_status() {
-		if [[ ! -f /etc/systemd/system/XMPlus.service ]]; then
+		if [[ ! -f /etc/systemd/system/XMRay.service ]]; then
 			return 2
 		fi
 	
-		temp=$(systemctl status XMPlus | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+		temp=$(systemctl status XMRay | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
 		if [[ x"${temp}" == x"running" ]]; then
 			return 0
 		else
@@ -298,7 +298,7 @@ check_status() {
 }
 
 check_enabled() {
-		temp=$(systemctl is-enabled XMPlus)
+		temp=$(systemctl is-enabled XMRay)
 		if [[ x"${temp}" == x"enabled" ]]; then
 			return 0
 		else
@@ -310,7 +310,7 @@ check_uninstall() {
     check_status
     if [[ $? != 2 ]]; then
         echo ""
-        echo -e "${red}XMPlus already installed, please do not repeat the installation${plain}"
+        echo -e "${red}XMRay already installed, please do not repeat the installation${plain}"
         if [[ $# == 0 ]]; then
             before_show_menu
         fi
@@ -324,7 +324,7 @@ check_install() {
     check_status
     if [[ $? == 2 ]]; then
         echo ""
-        echo -e "${red}please install XMPlus first${plain}"
+        echo -e "${red}please install XMRay first${plain}"
         if [[ $# == 0 ]]; then
             before_show_menu
         fi
@@ -338,15 +338,15 @@ show_status() {
     check_status
     case $? in
         0)
-            echo -e "XMPlus Status: ${green}Running${plain}"
+            echo -e "XMRay Status: ${green}Running${plain}"
             show_enable_status
             ;;
         1)
-            echo -e "XMPlus Status: ${yellow}Not Running${plain}"
+            echo -e "XMRay Status: ${yellow}Not Running${plain}"
             show_enable_status
             ;;
         2)
-            echo -e "XMPlus Status: ${red}Not Installed${plain}"
+            echo -e "XMRay Status: ${red}Not Installed${plain}"
     esac
 }
 
@@ -359,66 +359,66 @@ show_enable_status() {
     fi
 }
 
-show_XMPlus_version() {
+show_XMRay_version() {
     echo -n ""
-    /usr/local/XMPlus/XMPlus version
+    /usr/local/XMRay/XMRay version
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
-show_XMPlus_warp() {
+show_XMRay_warp() {
     echo -n ""
-    /usr/local/XMPlus/XMPlus warp
+    /usr/local/XMRay/XMRay warp
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
-show_XMPlus_x25519() {
+show_XMRay_x25519() {
      echo -n ""
-    /usr/local/XMPlus/XMPlus x25519
+    /usr/local/XMRay/XMRay x25519
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
-show_XMPlus_mldsa65() {
+show_XMRay_mldsa65() {
      echo -n ""
-    /usr/local/XMPlus/XMPlus mldsa65
+    /usr/local/XMRay/XMRay mldsa65
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
-show_XMPlus_mlkem768() {
+show_XMRay_mlkem768() {
      echo -n ""
-    /usr/local/XMPlus/XMPlus mlkem768
+    /usr/local/XMRay/XMRay mlkem768
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
-show_XMPlus_vlessenc() {
+show_XMRay_vlessenc() {
      echo -n ""
-    /usr/local/XMPlus/XMPlus vlessenc
+    /usr/local/XMRay/XMRay vlessenc
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
-show_XMPlus_ping() {
+show_XMRay_ping() {
     echo -n ""
     read -p "Enter domain name (e.g., example.com or example.com:443): " domain
     
     echo "TLS pinging $domain..."
-    /usr/local/XMPlus/XMPlus tls ping "$domain"
+    /usr/local/XMRay/XMRay tls ping "$domain"
     
     echo ""
     if [[ $# == 0 ]]; then
@@ -426,13 +426,13 @@ show_XMPlus_ping() {
     fi
 }
 
-show_XMPlus_certObtain() {  
+show_XMRay_certObtain() {  
     echo -n ""
     read -p "Enter domain name: " domain
     read -p "Enter email address: " email
     
     echo "Obtaining certificate for $domain using HTTP challenge..."
-    /usr/local/XMPlus/XMPlus cert obtain -d "$domain" -e "$email" 
+    /usr/local/XMRay/XMRay cert obtain -d "$domain" -e "$email" 
     
     echo ""
     if [[ $# == 0 ]]; then
@@ -440,13 +440,13 @@ show_XMPlus_certObtain() {
     fi
 }
 
-show_XMPlus_certRenew() {
+show_XMRay_certRenew() {
     echo -n ""
     read -p "Enter domain name: " domain
     read -p "Enter email address: " email
     
     echo "Renewing certificate for $domain using HTTP challenge..."
-    /usr/local/XMPlus/XMPlus cert renew -d "$domain" -e "$email"
+    /usr/local/XMRay/XMRay cert renew -d "$domain" -e "$email"
     
     echo ""
     if [[ $# == 0 ]]; then
@@ -454,11 +454,11 @@ show_XMPlus_certRenew() {
     fi
 }
 
-show_XMPlus_tls_generate() {
+show_XMRay_tls_generate() {
     echo -n ""
     read -p "Enter domain name (eg, tld.com): " domain
     
-    /usr/local/XMPlus/XMPlus tls generate --domain "$domain" --file "/ect/XMPlus/$domain"
+    /usr/local/XMRay/XMRay tls generate --domain "$domain" --file "/ect/XMRay/$domain"
     
     echo ""
     if [[ $# == 0 ]]; then
@@ -466,11 +466,11 @@ show_XMPlus_tls_generate() {
     fi
 }
 
-show_XMPlus_tls_ech() {
+show_XMRay_tls_ech() {
     echo -n ""
     read -p "Enter serverName: " serverName
     
-    /usr/local/XMPlus/XMPlus tls ech --serverName "$serverName"
+    /usr/local/XMRay/XMRay tls ech --serverName "$serverName"
     
     echo ""
     if [[ $# == 0 ]]; then
@@ -478,11 +478,11 @@ show_XMPlus_tls_ech() {
     fi
 }
 
-show_XMPlus_tls_hash() {
+show_XMRay_tls_hash() {
     echo -n ""
     read -p "Enter cert file(.crt) path: " file
     
-    /usr/local/XMPlus/XMPlus tls hash --cert "$file"
+    /usr/local/XMRay/XMRay tls hash --cert "$file"
     
     echo ""
     if [[ $# == 0 ]]; then
@@ -492,58 +492,58 @@ show_XMPlus_tls_hash() {
  
 
 show_usage() {
-    echo "XMPlus management script: "
+    echo "XMRay management script: "
     echo "------------------------------------------"
-    echo "XMPlus                    - Show menu (more features)"
-    echo "XMPlus start              - Start XMPlus"
-    echo "XMPlus stop               - Stop XMPlus"
-    echo "XMPlus restart            - Restart XMPlus"
-    echo "XMPlus status             - View XMPlus status"
-    echo "XMPlus enable             - Enable XMPlus auto-start"
-    echo "XMPlus disable            - Disable XMPlus auto-start"
-    echo "XMPlus log                - View XMPlus logs"
-    echo "XMPlus update             - Update XMPlus"
-    echo "XMPlus update vx.x.x      - Update XMPlus Specific version"
-    echo "XMPlus config             - Show configuration file content"
-    echo "XMPlus install            - Install XMPlus"
-    echo "XMPlus uninstall          - Uninstall XMPlus"
-    echo "XMPlus version            - View XMPlus version"
-    echo "XMPlus warp               - Generate cloudflare warp account"
-    echo "XMPlus x25519             - Generate key pair for X25519 key exchange (REALITY, VLESS Encryption)"
-    echo "XMPlus mldsa65            - Generate key pair for ML-DSA-65 post-quantum signature (REALITY)"
-    echo "XMPlus mlkem768           - Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption)"
-    echo "XMPlus vlessenc           - Generate decryption/encryption json pair (VLESS Encryption)" 
-    echo "XMPlus ping               - Ping a domain with TLS handshake" 
-    echo "XMPlus obtain             - Generate SSL/TLS certificate for domain name" 
-    echo "XMPlus renew              - Renew SSL/TLS certificate for domain name" 
-    echo "XMPlus ech                - Generate ECH keys with default or custom server name"
-    echo "XMPlus hash               - Calculate hash for specific certificate"
-    echo "XMPlus generate           - Generate self-signed TLS certificates for testing and production use"	
+    echo "XMRay                    - Show menu (more features)"
+    echo "XMRay start              - Start XMRay"
+    echo "XMRay stop               - Stop XMRay"
+    echo "XMRay restart            - Restart XMRay"
+    echo "XMRay status             - View XMRay status"
+    echo "XMRay enable             - Enable XMRay auto-start"
+    echo "XMRay disable            - Disable XMRay auto-start"
+    echo "XMRay log                - View XMRay logs"
+    echo "XMRay update             - Update XMRay"
+    echo "XMRay update vx.x.x      - Update XMRay Specific version"
+    echo "XMRay config             - Show configuration file content"
+    echo "XMRay install            - Install XMRay"
+    echo "XMRay uninstall          - Uninstall XMRay"
+    echo "XMRay version            - View XMRay version"
+    echo "XMRay warp               - Generate cloudflare warp account"
+    echo "XMRay x25519             - Generate key pair for X25519 key exchange (REALITY, VLESS Encryption)"
+    echo "XMRay mldsa65            - Generate key pair for ML-DSA-65 post-quantum signature (REALITY)"
+    echo "XMRay mlkem768           - Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption)"
+    echo "XMRay vlessenc           - Generate decryption/encryption json pair (VLESS Encryption)" 
+    echo "XMRay ping               - Ping a domain with TLS handshake" 
+    echo "XMRay obtain             - Generate SSL/TLS certificate for domain name" 
+    echo "XMRay renew              - Renew SSL/TLS certificate for domain name" 
+    echo "XMRay ech                - Generate ECH keys with default or custom server name"
+    echo "XMRay hash               - Calculate hash for specific certificate"
+    echo "XMRay generate           - Generate self-signed TLS certificates for testing and production use"	
     echo "------------------------------------------"
 }
 
 
 show_menu() {
     echo -e "
-  ${green}XMPlus backend management script，${plain}${red}not applicable to docker${plain}
---- https://github.com/XMPlusDev/XMPlusServer ---
+  ${green}XMRay backend management script，${plain}${red}not applicable to docker${plain}
+--- https://github.com/XMPlusDev/XMRay ---
   ${green}0.${plain} Change setting
 ————————————————
-  ${green}1.${plain} Install XMPlus
-  ${green}2.${plain} Update XMPlus
-  ${green}3.${plain} Uninstall XMPlus
+  ${green}1.${plain} Install XMRay
+  ${green}2.${plain} Update XMRay
+  ${green}3.${plain} Uninstall XMRay
 ————————————————
-  ${green}4.${plain} start XMPlus
-  ${green}5.${plain} Stop XMPlus
-  ${green}6.${plain} Restart XMPlus
-  ${green}7.${plain} View XMPlus Status
-  ${green}8.${plain} View XMPlus log
+  ${green}4.${plain} start XMRay
+  ${green}5.${plain} Stop XMRay
+  ${green}6.${plain} Restart XMRay
+  ${green}7.${plain} View XMRay Status
+  ${green}8.${plain} View XMRay log
 ————————————————
-  ${green}9.${plain} Enable XMPlus auto-satrt
- ${green}10.${plain} Disable XMPlus auto-satrt
+  ${green}9.${plain} Enable XMRay auto-satrt
+ ${green}10.${plain} Disable XMRay auto-satrt
 ————————————————
  ${green}11.${plain} One-click install bbr (latest kernel)
- ${green}12.${plain} View XMPlus version 
+ ${green}12.${plain} View XMRay version 
  ${green}13.${plain} Upgrade maintenance script
 ————————————————
  ${green}14.${plain} Generate cloudflare warp account info
@@ -587,31 +587,31 @@ show_menu() {
         ;;
         11) install_bbr
         ;;
-        12) check_install && show_XMPlus_version
+        12) check_install && show_XMRay_version
         ;;
         13) update_script
         ;;
-		14) check_install && show_XMPlus_warp
+		14) check_install && show_XMRay_warp
         ;;
-		15) check_install && show_XMPlus_x25519
+		15) check_install && show_XMRay_x25519
         ;;
-		16) check_install && show_XMPlus_mldsa65
+		16) check_install && show_XMRay_mldsa65
         ;;
-		17) check_install && show_XMPlus_mlkem768
+		17) check_install && show_XMRay_mlkem768
         ;;
-		18) check_install && show_XMPlus_vlessenc
+		18) check_install && show_XMRay_vlessenc
         ;;
-		19) check_install && show_XMPlus_ping
+		19) check_install && show_XMRay_ping
         ;;
-		20) check_install && show_XMPlus_certObtain
+		20) check_install && show_XMRay_certObtain
         ;;
-		21) check_install && show_XMPlus_certRenew
+		21) check_install && show_XMRay_certRenew
         ;;
-		22) check_install && show_XMPlus_tls_ech
+		22) check_install && show_XMRay_tls_ech
         ;;
-		23) check_install && show_XMPlus_tls_hash
+		23) check_install && show_XMRay_tls_hash
         ;;
-		24) check_install && show_XMPlus_tls_generate
+		24) check_install && show_XMRay_tls_generate
         ;;
         *) echo -e "${red}Please enter the correct number [0-24]${plain}"
         ;;
@@ -643,31 +643,31 @@ if [[ $# > 0 ]]; then
         ;;
         "uninstall") check_install 0 && uninstall 0
         ;;
-        "version") check_install 0 && show_XMPlus_version 0
+        "version") check_install 0 && show_XMRay_version 0
         ;;
         "update_script") update_script
         ;;
-		"warp") check_install 0 && show_XMPlus_warp 0
+		"warp") check_install 0 && show_XMRay_warp 0
         ;;
-		"x25519") check_install 0 && show_XMPlus_x25519 0
+		"x25519") check_install 0 && show_XMRay_x25519 0
         ;;
-		"mldsa65") check_install 0 && show_XMPlus_mldsa65 0
+		"mldsa65") check_install 0 && show_XMRay_mldsa65 0
         ;;
-		"mlkem768") check_install 0 && show_XMPlus_mlkem768 0
+		"mlkem768") check_install 0 && show_XMRay_mlkem768 0
         ;;
-		"vlessenc") check_install 0 && show_XMPlus_vlessenc 0
+		"vlessenc") check_install 0 && show_XMRay_vlessenc 0
         ;;
-		"ping") check_install 0 && show_XMPlus_ping 0
+		"ping") check_install 0 && show_XMRay_ping 0
         ;;
-		"obtain") check_install 0 && show_XMPlus_certObtain 0
+		"obtain") check_install 0 && show_XMRay_certObtain 0
         ;;
-		"renew") check_install 0 && show_XMPlus_certRenew 0
+		"renew") check_install 0 && show_XMRay_certRenew 0
         ;;
-		"ech") check_install && show_XMPlus_tls_ech 0
+		"ech") check_install && show_XMRay_tls_ech 0
         ;;
-		"hash") check_install && show_XMPlus_tls_hash 0
+		"hash") check_install && show_XMRay_tls_hash 0
         ;;
-		"generate") check_install && show_XMPlus_tls_generate 0
+		"generate") check_install && show_XMRay_tls_generate 0
         ;;
         *) show_usage
     esac

@@ -1,5 +1,5 @@
 [Unit]
-Description=XMPlus Service
+Description=XMRay Service
 After=network.target nss-lookup.target
 Wants=network.target
 
@@ -12,8 +12,8 @@ LimitRSS=infinity
 LimitCORE=infinity
 LimitNPROC=10000
 LimitNOFILE=1000000
-WorkingDirectory=/usr/local/XMPlus/
-ExecStart=/usr/local/XMPlus/XMPlus --config /etc/XMPlus/config.yml
+WorkingDirectory=/usr/local/XMRay/
+ExecStart=/usr/local/XMRay/XMRay --config /etc/XMRay/config.yml
 Restart=on-failure
 RestartPreventExitStatus=23
 RestartSec=10s

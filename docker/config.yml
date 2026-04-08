@@ -1,13 +1,13 @@
 Log:
   Level: warning # Log level: none, error, warning, info, debug 
-  AccessPath: # /etc/XMPlus/access.Log
-  ErrorPath: # /etc/XMPlus/error.log
+  AccessPath: # /etc/XMRay/access.Log
+  ErrorPath: # /etc/XMRay/error.log
   DNSLog: false  # / true or false Whether to enable DNS query log, for example: DOH//doh.server got answer: domain.com -> [ip1, ip2] 2.333ms 
   MaskAddress: half # half, full, quater
-DnsConfigPath:  /etc/XMPlus/dns.json   #https://xtls.github.io/config/dns.html
-RouteConfigPath: # /etc/XMPlus/route.json   #https://xtls.github.io/config/routing.html
-InboundConfigPath: # /etc/XMPlus/inbound.json  #https://xtls.github.io/config/inbound.html#inboundobject
-OutboundConfigPath: # /etc/XMPlus/outbound.json   #https://xtls.github.io/config/outbound.html
+DnsConfigPath:  /etc/XMRay/dns.json   #https://xtls.github.io/config/dns.html
+RouteConfigPath: # /etc/XMRay/route.json   #https://xtls.github.io/config/routing.html
+InboundConfigPath: # /etc/XMRay/inbound.json  #https://xtls.github.io/config/inbound.html#inboundobject
+OutboundConfigPath: # /etc/XMRay/outbound.json   #https://xtls.github.io/config/outbound.html
 ConnectionConfig:
   Handshake: 8 
   ConnIdle: 300 
@@ -25,9 +25,9 @@ Nodes:
       EnableDNS: true # Use custom DNS config, Please ensure that you set the dns.json well
       DNSStrategy: AsIs # AsIs, UseIP, UseIPv4, UseIPv6
       CertConfig:
-        Email: author@xmplus.dev                    # Required when Cert Mode is not none
-        CertFile: /etc/XMPlus/node1.xmplus.dev.crt  # Required when Cert Mode is file
-        KeyFile: /etc/XMPlus/node1.xmplus.dev.key   # Required when Cert Mode is file
+        Email: author@cert.dev                    # Required when Cert Mode is not none
+        CertFile: /etc/XMRay/node1.cert.dev.crt  # Required when Cert Mode is file
+        KeyFile: /etc/XMRay/node1.cert.dev.key   # Required when Cert Mode is file
         Provider: cloudflare                        # Required when Cert Mode is dns
         CertEnv:                                    # Required when Cert Mode is dns
           CLOUDFLARE_EMAIL:                         # Required when Cert Mode is dns

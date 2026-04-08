@@ -79,10 +79,10 @@ install_base() {
 
 # 0: running, 1: not running, 2: not installed
 check_status() {
-    if [[ ! -f /etc/systemd/system/XMPlus.service ]]; then
+    if [[ ! -f /etc/systemd/system/XMRay.service ]]; then
         return 2
     fi
-    temp=$(systemctl status XMPlus | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+    temp=$(systemctl status XMRay | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
     if [[ x"${temp}" == x"running" ]]; then
         return 0
     else
@@ -95,155 +95,154 @@ install_acme() {
 }
 
 install_XMPlus() {
-    if [[ -e /usr/local/XMPlus/ ]]; then
-        rm /usr/local/XMPlus/ -rf
+    if [[ -e /usr/local/XMRay/ ]]; then
+        rm /usr/local/XMRay/ -rf
     fi
 	
-	if [[ -f /usr/bin/XMPlus ]]; then
-		rm /usr/bin/XMPlus -f
+	if [[ -f /usr/bin/XMRay ]]; then
+		rm /usr/bin/XMRay -f
 	fi
 	
-	if [[ -f /usr/bin/xmplus ]]; then
-		rm /usr/bin/xmplus -f
+	if [[ -f /usr/bin/xmray ]]; then
+		rm /usr/bin/xmray -f
 	fi
 	
-    mkdir /usr/local/XMPlus/ -p
+    mkdir /usr/local/XMRay/ -p
 	
-	cd /usr/local/XMPlus/
+	cd /usr/local/XMRay/
 
     if  [ $# == 0 ] ;then
         last_version=$(curl -Ls "https://api.github.com/repos/XMPlusDev/XMPlusServer/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$last_version" ]]; then
-            echo -e "${red}Failed to detect the XMPlus version, it may be because of Github API limit, please try again later, or manually specify the XMPlus version to install${plain}"
+            echo -e "${red}Failed to detect the XMRay version, it may be because of Github API limit, please try again later, or manually specify the XMRay version to install${plain}"
             exit 1
         fi
-        echo -e "XMPlus latest version detected：${last_version}，Start Installation"
-        wget -N --no-check-certificate -O /usr/local/XMPlus/XMPlus-linux.zip https://github.com/XMPlusDev/XMPlusServer/releases/download/${last_version}/XMPlus-linux-${kernelArch}.zip
+        echo -e "XMRay latest version detected：${last_version}，Start Installation"
+        wget -N --no-check-certificate -O /usr/local/XMRay/XMRay-linux.zip https://github.com/XMPlusDev/XMPlusServer/releases/download/${last_version}/XMRay-linux-${kernelArch}.zip
         if [[ $? -ne 0 ]]; then
-            echo -e "${red}Downloading XMPlus failed，Please make sure your server can download github file${plain}"
+            echo -e "${red}Downloading XMRay failed，Please make sure your server can download github file${plain}"
             exit 1
         fi
     else
         last_version=$1
-        url="https://github.com/XMPlusDev/XMPlusServer/releases/download/${last_version}/XMPlus-linux-${kernelArch}.zip"
-        echo -e "Start Installation XMPlus v$1"
-        wget -N --no-check-certificate -O /usr/local/XMPlus/XMPlus-linux.zip ${url}
+        url="https://github.com/XMPlusDev/XMPlusServer/releases/download/${last_version}/XMRay-linux-${kernelArch}.zip"
+        echo -e "Start Installation XMRay v$1"
+        wget -N --no-check-certificate -O /usr/local/XMRay/XMRay-linux.zip ${url}
         if [[ $? -ne 0 ]]; then
-            echo -e "${red}Downloading XMPlus v$1 failed, make sure this version exists${plain}"
+            echo -e "${red}Downloading XMRay v$1 failed, make sure this version exists${plain}"
             exit 1
         fi
     fi
 
-    unzip XMPlus-linux.zip
-    rm XMPlus-linux.zip -f
-    chmod +x XMPlus
+    unzip XMRay-linux.zip
+    rm XMRay-linux.zip -f
+    chmod +x XMRay
 	
     if [ -e "/etc/systemd/system/" ] ; then
-		if [ -e "/usr/lib/systemd/system/XMPlus.service" ] ; then
-			systemctl stop XMPlus
-			systemctl disable XMPlus
-		    rm /etc/systemd/system/XMPlus.service -f
+		if [ -e "/usr/lib/systemd/system/XMRay.service" ] ; then
+			systemctl stop XMRay
+			systemctl disable XMRay
+		    rm /etc/systemd/system/XMRay.service -f
 		fi
 		
-		file="https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/XMPlus.service"
-		wget -N --no-check-certificate -O /etc/systemd/system/XMPlus.service ${file}
+		file="https://raw.githubusercontent.com/XMPlusDev/XMRay/script/XMRay.service"
+		wget -N --no-check-certificate -O /etc/systemd/system/XMRay.service ${file}
 		systemctl daemon-reload
-		systemctl stop XMPlus
-		systemctl enable XMPlus
+		systemctl stop XMRay
+		systemctl enable XMRay
     elif [ -e "/usr/sbin/rc-service" ] ; then
-		if [ -e "/etc/init.d/xmplus" ] ; then
-			systemctl stop XMPlus
-			systemctl disable XMPlus
-			rm /etc/init.d/xmplus/xmplus.rc -f
+		if [ -e "/etc/init.d/xmray" ] ; then
+			systemctl stop XMRay
+			systemctl disable XMRay
+			rm /etc/init.d/xmray/xmray.rc -f
 		else	
-			 mkdir /etc/init.d/xmplus/ -p
+			 mkdir /etc/init.d/xmray/ -p
 		fi
-		file="https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/xmplus.rc"
-		wget -N --no-check-certificate -O /etc/init.d/xmplus/xmplus.rc ${file}
+		file="https://raw.githubusercontent.com/XMPlusDev/XMRay/script/xmray.rc"
+		wget -N --no-check-certificate -O /etc/init.d/xmray/xmray.rc ${file}
 		systemctl daemon-reload
-		rc-update add xmplus default 
+		rc-update add xmray default 
 		rc-update --update
-		chmod +x /etc/init.d/xmplus/xmplus.rc
-		ln -s /etc/XMPlus /usr/local/etc/
+		chmod +x /etc/init.d/xmray/xmray.rc
+		ln -s /etc/XMRay /usr/local/etc/
     else
        echo "not found."
     fi	
 	
-    mkdir /etc/XMPlus/ -p
+    mkdir /etc/XMRay/ -p
 	
-    echo -e "${green}XMPlus ${last_version}${plain} The installation is complete，XMPlus has restarted"
+    echo -e "${green}XMRay ${last_version}${plain} The installation is complete，XMRay has restarted"
 	
-    cp geoip.dat /etc/XMPlus/
+    cp geoip.dat /etc/XMRay/
 	
-    cp geosite.dat /etc/XMPlus/ 
+    cp geosite.dat /etc/XMRay/ 
 	
-    if [[ ! -f /etc/XMPlus/dns.json ]]; then
-		cp dns.json /etc/XMPlus/
+    if [[ ! -f /etc/XMRay/dns.json ]]; then
+		cp dns.json /etc/XMRay/
 	fi
-	if [[ ! -f /etc/XMPlus/route.json ]]; then 
-		cp route.json /etc/XMPlus/
-	fi
-	
-	if [[ ! -f /etc/XMPlus/outbound.json ]]; then
-		cp outbound.json /etc/XMPlus/
+	if [[ ! -f /etc/XMRay/route.json ]]; then 
+		cp route.json /etc/XMRay/
 	fi
 	
-	if [[ ! -f /etc/XMPlus/inbound.json ]]; then
-		cp inbound.json /etc/XMPlus/
+	if [[ ! -f /etc/XMRay/outbound.json ]]; then
+		cp outbound.json /etc/XMRay/
 	fi
 	
-    if [[ ! -f /etc/XMPlus/config.yml ]]; then
-        cp config.yml /etc/XMPlus/
+	if [[ ! -f /etc/XMRay/inbound.json ]]; then
+		cp inbound.json /etc/XMRay/
+	fi
+	
+    if [[ ! -f /etc/XMRay/config.yml ]]; then
+        cp config.yml /etc/XMRay/
     else
 		if [ -e "/etc/systemd/system/" ] ; then
-			systemctl start XMPlus
+			systemctl start XMRay
 		else
-			rc-service xmplus start
+			rc-service xmray start
 		fi
         sleep 2
         check_status
         echo -e ""
         if [[ $? == 0 ]]; then
-            echo -e "${green}XMPlus restart successfully${plain}"
+            echo -e "${green}XMRay restart successfully${plain}"
         else
-            echo -e "${red} XMPlus May fail to start, please use [ XMPlus log ] View log information ${plain}"
+            echo -e "${red} XMRay May fail to start, please use [ XMRay log ] View log information ${plain}"
         fi
     fi
     
-    curl -o /usr/bin/XMPlus -Ls https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/XMPlus.sh
-    chmod +x /usr/bin/XMPlus
-    ln -s /usr/bin/XMPlus /usr/bin/xmplus 
-    chmod +x /usr/bin/xmplus
+    curl -o /usr/bin/XMRay -Ls https://raw.githubusercontent.com/XMPlusDev/XMPlusServer/script/XMRay.sh
+    chmod +x /usr/bin/XMRay
+    ln -s /usr/bin/XMRay /usr/bin/xmray 
+    chmod +x /usr/bin/xmray
 
     echo -e ""
-    echo "XMPlus Management usage method: "
+    echo "XMRay Management usage method: "
     echo "------------------------------------------"
-    echo "XMPlus                    - Show menu (more features)"
-    echo "XMPlus start              - Start XMPlus"
-    echo "XMPlus stop               - Stop XMPlus"
-    echo "XMPlus restart            - Restart XMPlus"
-    echo "XMPlus status             - View XMPlus status"
-    echo "XMPlus enable             - Enable XMPlus auto-start"
-    echo "XMPlus disable            - Disable XMPlus auto-start"
-    echo "XMPlus log                - View XMPlus logs"
-    echo "XMPlus update             - Update XMPlus"
-    echo "XMPlus update vx.x.x      - Update XMPlus Specific version"
-    echo "XMPlus config             - Show configuration file content"
-    echo "XMPlus install            - Install XMPlus"
-    echo "XMPlus uninstall          - Uninstall XMPlus"
-    echo "XMPlus version            - View XMPlus version"
-    echo "XMPlus update_script      - Upgrade script"
-    echo "XMPlus warp               - Generate cloudflare warp account"
-    echo "XMPlus x25519             - Generate key pair for X25519 key exchange (REALITY, VLESS Encryption)"
-    echo "XMPlus mldsa65            - Generate key pair for ML-DSA-65 post-quantum signature (REALITY)"
-    echo "XMPlus mlkem768           - Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption)"
-    echo "XMPlus vlessenc           - Generate decryption/encryption json pair (VLESS Encryption)"
-    echo "XMPlus ping               - Ping a domain with TLS handshake" 
-    echo "XMPlus obtain             - Generate SSL/TLS certificate for domain name" 
-    echo "XMPlus renew              - Renew SSL/TLS certificate for domain name" 
-    echo "XMPlus ech                - Generate ECH keys with default or custom server name"
-    echo "XMPlus hash               - Calculate hash for specific certificate"
-    echo "XMPlus generate           - Generate self-signed TLS certificates for testing and production use"	
+    echo "XMRay                    - Show menu (more features)"
+    echo "XMRay start              - Start XMRay"
+    echo "XMRay stop               - Stop XMRay"
+    echo "XMRay restart            - Restart XMRay"
+    echo "XMRay status             - View XMRay status"
+    echo "XMRay enable             - Enable XMRay auto-start"
+    echo "XMRay disable            - Disable XMRay auto-start"
+    echo "XMRay log                - View XMRay logs"
+    echo "XMRay update             - Update XMRay"
+    echo "XMRay update vx.x.x      - Update XMRay Specific version"
+    echo "XMRay config             - Show configuration file content"
+    echo "XMRay install            - Install XMRay"
+    echo "XMRay uninstall          - Uninstall XMRay"
+    echo "XMRay version            - View XMRay version"
+    echo "XMRay warp               - Generate cloudflare warp account"
+    echo "XMRay x25519             - Generate key pair for X25519 key exchange (REALITY, VLESS Encryption)"
+    echo "XMRay mldsa65            - Generate key pair for ML-DSA-65 post-quantum signature (REALITY)"
+    echo "XMRay mlkem768           - Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption)"
+    echo "XMRay vlessenc           - Generate decryption/encryption json pair (VLESS Encryption)" 
+    echo "XMRay ping               - Ping a domain with TLS handshake" 
+    echo "XMRay obtain             - Generate SSL/TLS certificate for domain name" 
+    echo "XMRay renew              - Renew SSL/TLS certificate for domain name" 
+    echo "XMRay ech                - Generate ECH keys with default or custom server name"
+    echo "XMRay hash               - Calculate hash for specific certificate"
+    echo "XMRay generate           - Generate self-signed TLS certificates for testing and production use"	
     echo "------------------------------------------"
 }
 
