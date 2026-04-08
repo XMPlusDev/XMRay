@@ -39,6 +39,7 @@ type InboundInfo struct {
 	GlobalIPLimit  struct {
 		config         *RedisConfig
 		globalOnlineIP *marshaler.Marshaler
+		redisClient    *redis.Client
 	}
 }
 
@@ -61,19 +62,16 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 
 	if redisConfig != nil && redisConfig.Enable {
 		inboundInfo.GlobalIPLimit.config = redisConfig
-
-		rs := redisStore.NewRedis(redis.NewClient(
-			&redis.Options{
-				Network:  redisConfig.Network,
-				Addr:     redisConfig.Addr,
-				Username: redisConfig.Username,
-				Password: redisConfig.Password,
-				DB:       redisConfig.DB,
-			}),
-			store.WithExpiration(time.Duration(expiry)*time.Second))
-		
-		cacheManager := cache.New[any](rs)
-		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cacheManager)
+		rc := redis.NewClient(&redis.Options{
+			Network:  redisConfig.Network,
+			Addr:     redisConfig.Addr,
+			Username: redisConfig.Username,
+			Password: redisConfig.Password,
+			DB:       redisConfig.DB,
+		})
+		inboundInfo.GlobalIPLimit.redisClient = rc
+		rs := redisStore.NewRedis(rc, store.WithExpiration(time.Duration(expiry)*time.Second))
+		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cache.New[any](rs))
 	}
 	
 	serviceMap := new(sync.Map)
@@ -118,6 +116,14 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 }
 
 func (l *Limiter) DeleteInboundLimiter(tag string) error {
+	if v, ok := l.InboundInfo.Load(tag); ok {
+		info := v.(*InboundInfo)
+		if info.GlobalIPLimit.redisClient != nil {
+			if err := info.GlobalIPLimit.redisClient.Close(); err != nil {
+				log.Printf("error closing Redis client for tag %s: %v", tag, err)
+			}
+		}
+	}
 	l.InboundInfo.Delete(tag)
 	return nil
 }
