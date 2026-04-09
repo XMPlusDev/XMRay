@@ -16,7 +16,7 @@ func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 
 	server := new(serverConfig)
 	res, err := c.client.R().
-		SetBody(map[string]string{"key": c.Key}).
+		SetBody(map[string]string{"key": c.Key, "core": "xray"}).
 		ForceContentType("application/json").
 		SetPathParam("serverId", strconv.Itoa(c.NodeID)).
 		SetHeader("If-None-Match", c.eTags["server"]).
@@ -91,7 +91,7 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	}
 
 	if nodeInfo.NodeType == "shadowsocks" {
-		nodeInfo.Cipher = s.Cipher
+		nodeInfo.Cipher = transportData.Get("cipher").MustString()
 		nodeInfo.ServerKey = s.ServerKey
 	}
 
@@ -475,7 +475,7 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	}
 
 	if nodeInfo.NodeType == "shadowsocks" {
-		nodeInfo.Cipher = s.Cipher
+		nodeInfo.Cipher = transportData.Get("cipher").MustString()
 		nodeInfo.ServerKey = s.ServerKey
 	}
 

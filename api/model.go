@@ -36,7 +36,6 @@ type serverConfig struct {
 
 type server struct {
 	Type        string `json:"type"`
-	Cipher      string `json:"cipher"`
 	IP          string `json:"ip"`
 	RelayNodeId int    `json:"transit_server_id"`
 	RelayType   int    `json:"transit_server_type"`
@@ -51,7 +50,6 @@ type transitServer struct {
 	RType        string `json:"type"`
 	NodeId       int    `json:"server_id"`
 	RAddress     string `json:"address"`
-	RCipher      string `json:"cipher"`
 	RServerKey   string `json:"server_key"`
 	RNetworkSettings  *json.RawMessage `json:"transportSettings"`
 	RSecuritySettings *json.RawMessage `json:"securitySettings"`
