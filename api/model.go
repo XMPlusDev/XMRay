@@ -122,10 +122,11 @@ type RealitySettings struct {
 }
 
 type MaskSettings struct {
-	Enabled    bool
-	TCP        *MaskEntry
-	UDP        *MaskEntry
-	QuicParams *QuicParamsSettings
+	Enabled    		bool
+	EnabledQuic     bool
+	TCP        		*MaskEntry
+	UDP        		*MaskEntry
+	QuicParams 		*QuicParamsSettings
 }
 
 type MaskEntry struct {

@@ -805,6 +805,8 @@ func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) err
 	hasTCP := false
 	hasUDP := false
 	var quicParams *QuicParamsSettings
+	
+	*ms = &MaskSettings{}
 
 	if maskTCP, isOK := maskSettings.CheckGet("tcp"); isOK {
 		maskArray, err := maskTCP.Array()
@@ -828,13 +830,14 @@ func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) err
 			return fmt.Errorf("quicParams: %w", err)
 		}
 		quicParams = parsed
+		(*ms).EnabledQuic = true
 	}
 
 	if !hasTCP && !hasUDP && quicParams == nil {
 		return nil
 	}
 
-	*ms = &MaskSettings{Enabled: true}
+	(*ms).Enabled = true
 
 	if hasTCP {
 		firstMask := maskSettings.Get("tcp").GetIndex(0)
@@ -869,10 +872,10 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 		q.Debug = v
 	}
 	if v, err := qp.Get("bbrProfile ").String(); err == nil {
-		q.BrutalUp = v
+		q.BbrProfile = v
 	}
 	if v, err := qp.Get("brutalUp").String(); err == nil {
-		q.BbrProfile = v
+		q.BrutalUp = v
 	}
 	if v, err := qp.Get("brutalDown").String(); err == nil {
 		q.BrutalDown = v

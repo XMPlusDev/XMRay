@@ -332,7 +332,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			finalMaskSettings.Tcp = []conf.Mask{tcpMask}
 		}
 
-		if nodeInfo.MaskSettings.QuicParams != nil {
+		if nodeInfo.MaskSettings.QuicParams != nil && nodeInfo.MaskSettings.EnabledQuic {
 			finalMaskSettings.QuicParams = buildQuicParams(nodeInfo.MaskSettings.QuicParams)
 		}
 
@@ -349,7 +349,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			
 		tlsSettings := &conf.TLSConfig{}
 		
-		tlsSettings.Certs = append(tlsSettings.Certs, &conf.TLSCertConfig{CertFile: certFile, KeyFile: keyFile, OcspStapling: 3600})
+		tlsSettings.Certs = append(tlsSettings.Certs, &conf.TLSCertConfig{CertFile: certFile, KeyFile: keyFile})
 		tlsSettings.RejectUnknownSNI = nodeInfo.TlsSettings.RejectUnknownSni
 		tlsSettings.ServerName = nodeInfo.TlsSettings.ServerName
 		

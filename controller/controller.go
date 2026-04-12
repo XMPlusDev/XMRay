@@ -157,14 +157,14 @@ func (c *Controller) Start() error {
 	c.LogPrefix = c.logPrefix()
 	
 	// Add periodic tasks using the task manager
-	c.taskManager.Add(task.NewWithInterval(
+	c.taskManager.Add(task.NewWithDelay(
 		c.LogPrefix,
 		"server",
 		time.Duration(c.nodeInfo.UpdateTime)*time.Second,
 		c.nodeInfoMonitor,
 	))
 	
-	c.taskManager.Add(task.NewWithInterval(
+	c.taskManager.Add(task.NewWithDelay(
 		c.LogPrefix,
 		"subscriptions",
 		time.Duration(c.nodeInfo.UpdateTime)*time.Second,
@@ -176,7 +176,7 @@ func (c *Controller) Start() error {
 	// Check cert service if needed
 	if c.nodeInfo.SecurityType == "tls" { 
 		if c.nodeInfo.TlsSettings.CertMode != "none" {
-			c.taskManager.Add(task.NewWithInterval(
+			c.taskManager.Add(task.NewWithDelay(
 				c.LogPrefix,
 				"cert renew",
 				time.Duration(c.nodeInfo.UpdateTime)*time.Second*60,

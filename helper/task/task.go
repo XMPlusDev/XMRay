@@ -1,25 +1,20 @@
-// task/task.go
 package task
 
 import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/xtls/xray-core/common/task"
 )
 
-// PeriodicTask wraps the xray task.Periodic with a tag identifier
 type PeriodicTask struct {
 	LogTag   string
 	Tag      string
-	*task.Periodic
+	*Periodic
 	mu       sync.Mutex
 	running  bool
 }
 
-// New creates a new PeriodicTask with the given tag and periodic task
-func New(logTag string, tag string, periodic *task.Periodic) *PeriodicTask {
+func New(logTag string, tag string, periodic *Periodic) *PeriodicTask {
 	return &PeriodicTask{
 		LogTag:   logTag,
 		Tag:      tag,
@@ -28,12 +23,11 @@ func New(logTag string, tag string, periodic *task.Periodic) *PeriodicTask {
 	}
 }
 
-// NewWithInterval creates a new PeriodicTask with tag, interval, and execute function
 func NewWithInterval(logTag string, tag string, interval time.Duration, execute func() error) *PeriodicTask {
 	return &PeriodicTask{
 		LogTag: logTag,
 		Tag: tag,
-		Periodic: &task.Periodic{
+		Periodic: &Periodic{
 			Interval: interval,
 			Execute:  execute,
 		},
@@ -41,7 +35,19 @@ func NewWithInterval(logTag string, tag string, interval time.Duration, execute 
 	}
 }
 
-// Start begins the periodic task execution
+func NewWithDelay(logTag string, tag string, interval time.Duration, execute func() error) *PeriodicTask {
+	return &PeriodicTask{
+		LogTag: logTag,
+		Tag:    tag,
+		Periodic: &Periodic{
+			Interval: interval,
+			Execute:  execute,
+			delay:    true,
+		},
+		running: false,
+	}
+}
+
 func (pt *PeriodicTask) Start() error {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
@@ -60,7 +66,6 @@ func (pt *PeriodicTask) Start() error {
 	return nil
 }
 
-// Close stops the periodic task execution
 func (pt *PeriodicTask) Close() error {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
@@ -79,14 +84,12 @@ func (pt *PeriodicTask) Close() error {
 	return nil
 }
 
-// IsRunning returns whether the task is currently running
 func (pt *PeriodicTask) IsRunning() bool {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
 	return pt.running
 }
 
-// Restart stops and starts the task
 func (pt *PeriodicTask) Restart() error {
 	if err := pt.Close(); err != nil {
 		return err
@@ -94,27 +97,23 @@ func (pt *PeriodicTask) Restart() error {
 	return pt.Start()
 }
 
-// Manager manages multiple periodic tasks
 type Manager struct {
 	tasks []*PeriodicTask
 	mu    sync.RWMutex
 }
 
-// NewManager creates a new task manager
 func NewManager() *Manager {
 	return &Manager{
 		tasks: make([]*PeriodicTask, 0),
 	}
 }
 
-// Add adds a new task to the manager
 func (m *Manager) Add(task *PeriodicTask) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.tasks = append(m.tasks, task)
 }
 
-// StartAll starts all tasks in the manager
 func (m *Manager) StartAll() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -129,7 +128,6 @@ func (m *Manager) StartAll() error {
 	return nil
 }
 
-// CloseAll stops all tasks in the manager
 func (m *Manager) CloseAll() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -144,7 +142,6 @@ func (m *Manager) CloseAll() error {
 	return lastErr
 }
 
-// GetTask returns a task by tag
 func (m *Manager) GetTask(tag string) *PeriodicTask {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -157,7 +154,6 @@ func (m *Manager) GetTask(tag string) *PeriodicTask {
 	return nil
 }
 
-// RemoveTask removes a task by tag
 func (m *Manager) RemoveTask(tag string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -174,7 +170,6 @@ func (m *Manager) RemoveTask(tag string) error {
 	return nil
 }
 
-// Count returns the number of tasks
 func (m *Manager) Count() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

@@ -270,7 +270,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			finalMaskSettings.Tcp = []conf.Mask{tcpMask}
 		}
 
-		if nodeInfo.MaskSettings.QuicParams != nil {
+		if nodeInfo.MaskSettings.QuicParams != nil && nodeInfo.MaskSettings.EnabledQuic {
 			finalMaskSettings.QuicParams = buildQuicParams(nodeInfo.MaskSettings.QuicParams)
 		}
 
