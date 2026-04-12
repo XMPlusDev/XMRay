@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
@@ -177,7 +178,7 @@ func runManager(config *viper.Viper, restartChan chan bool) error {
 func startManagerSafely(m *manager.Manager) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic during manager start: %v", r)
+			err = fmt.Errorf("panic during manager start: %v\n%s", r, debug.Stack())
 		}
 	}()
 	

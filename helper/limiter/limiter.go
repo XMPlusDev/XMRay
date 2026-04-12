@@ -214,11 +214,7 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 							}
 						}
 
-						if len(remaining) == 0 {
-							delete(*ipMap, ip)
-						} else {
-							(*ipMap)[ip] = remaining
-						}
+						(*ipMap)[ip] = remaining
 					}
 
 					// Push updated map back to Redis if we removed any entries
@@ -267,18 +263,19 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string, address string
 		}
 		
 		// Speed limit
-		limit := determineRate(nodeLimit, SpeedLimit) // Determine the speed limit rate
-		if limit > 0 {
-			limiter := rate.NewLimiter(rate.Limit(limit), int(limit)) // Byte/s
-			if v, ok := inboundInfo.BucketHub.LoadOrStore(email, limiter); ok {
-				bucket := v.(*rate.Limiter)
-				return bucket, true, false
-			} else {
-				return limiter, true, false
-			}
-		} else {
+		limit := determineRate(nodeLimit, SpeedLimit)
+		if limit == 0 {
 			return nil, false, false
 		}
+
+		if v, ok := inboundInfo.BucketHub.Load(email); ok {
+			return v.(*rate.Limiter), true, false
+		}
+		limiter := rate.NewLimiter(rate.Limit(limit), int(limit))
+		if v, loaded := inboundInfo.BucketHub.LoadOrStore(email, limiter); loaded {
+			return v.(*rate.Limiter), true, false
+		}
+		return limiter, true, false
 	} else {
 		newError("Get Limiter information failed").AtDebug()
 		return nil, false, false
@@ -354,19 +351,17 @@ func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string][]IPDa
 
 // determineRate returns the minimum non-zero rate
 func determineRate(nodeLimit, SubscriptionLimit uint64) (limit uint64) {
-	if nodeLimit == 0 && SubscriptionLimit == 0 {
+	switch {
+	case nodeLimit == 0 && subscriptionLimit == 0:
 		return 0
-	} else {
-		if nodeLimit == 0 && SubscriptionLimit > 0 {
-			return SubscriptionLimit
-		} else if nodeLimit > 0 && SubscriptionLimit == 0 {
-			return nodeLimit
-		} else if nodeLimit > SubscriptionLimit {
-			return SubscriptionLimit
-		} else if nodeLimit < SubscriptionLimit {
-			return nodeLimit
-		} else {
+	case nodeLimit == 0:
+		return subscriptionLimit
+	case subscriptionLimit == 0:
+		return nodeLimit
+	default:
+		if nodeLimit < subscriptionLimit {
 			return nodeLimit
 		}
+		return subscriptionLimit
 	}
 }
