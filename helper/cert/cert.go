@@ -124,7 +124,6 @@ func (l *LegoCMD) HTTPCert(CertMode string, CertDomain string) (CertPath string,
 	if port != "" {
 		stoppedService = getServiceOnPort(port)
 		if stoppedService != nil {
-			fmt.Printf("Found %s using port %s, stopping it...\n", stoppedService.Name, port)
 			if err := stopService(stoppedService.Name); err != nil {
 				return "", "", fmt.Errorf("failed to stop %s: %v", stoppedService.Name, err)
 			}
@@ -134,8 +133,6 @@ func (l *LegoCMD) HTTPCert(CertMode string, CertDomain string) (CertPath string,
 				fmt.Printf("Restarting %s...\n", stoppedService.Name)
 				if err := startService(stoppedService.Name); err != nil {
 					fmt.Printf("Failed to restart %s: %v\n", stoppedService.Name, err)
-				} else {
-					fmt.Printf("%s restarted successfully\n", stoppedService.Name)
 				}
 			}()
 			
@@ -188,7 +185,6 @@ func (l *LegoCMD) RenewCert(CertMode string, CertDomain string) (CertPath string
 	if port != "" {
 		stoppedService = getServiceOnPort(port)
 		if stoppedService != nil {
-			fmt.Printf("Found %s using port %s, stopping it...\n", stoppedService.Name, port)
 			if err := stopService(stoppedService.Name); err != nil {
 				return "", "", false, fmt.Errorf("failed to stop %s: %v", stoppedService.Name, err)
 			}
@@ -198,8 +194,6 @@ func (l *LegoCMD) RenewCert(CertMode string, CertDomain string) (CertPath string
 				fmt.Printf("Restarting %s...\n", stoppedService.Name)
 				if err := startService(stoppedService.Name); err != nil {
 					fmt.Printf("Failed to restart %s: %v\n", stoppedService.Name, err)
-				} else {
-					fmt.Printf("%s restarted successfully\n", stoppedService.Name)
 				}
 			}()
 			

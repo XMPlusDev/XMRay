@@ -410,7 +410,7 @@ func buildQuicParams(q *api.QuicParamsSettings) *conf.QuicParamsConfig {
 	qp := &conf.QuicParamsConfig{
 		Congestion:                  q.Congestion,
 		Debug:                       q.Debug,
-		//BbrProfile:                  q.BbrProfile,
+		BbrProfile:                  q.BbrProfile,
 		BrutalUp:                    conf.Bandwidth(q.BrutalUp),
 		BrutalDown:                  conf.Bandwidth(q.BrutalDown),
 		InitStreamReceiveWindow:     q.InitStreamReceiveWindow,
