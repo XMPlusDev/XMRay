@@ -350,7 +350,7 @@ func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string][]IPDa
 }
 
 // determineRate returns the minimum non-zero rate
-func determineRate(nodeLimit, SubscriptionLimit uint64) (limit uint64) {
+func determineRate(nodeLimit, subscriptionLimit uint64) (limit uint64) {
 	switch {
 	case nodeLimit == 0 && subscriptionLimit == 0:
 		return 0
