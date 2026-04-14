@@ -235,7 +235,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		kcpSettings := &conf.KCPConfig{}
 		// Check if KcpSettings is not nil
 		if nodeInfo.KcpSettings != nil {
-			kcpSettings.Congestion = &nodeInfo.KcpSettings.Congestion
 			kcpSettings.Mtu = &nodeInfo.KcpSettings.Mtu
 		}
 		streamSetting.KCPSettings = kcpSettings	

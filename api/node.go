@@ -221,9 +221,6 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 	//kcp
 	if nodeInfo.NetworkType == "kcp" {
 		nodeInfo.KcpSettings = &KcpSettings{}
-		if congestionData, err := transportSettings.Get("congestion").Bool(); err == nil {
-			nodeInfo.KcpSettings.Congestion = congestionData
-		}
 		if MtuData, err := transportSettings.Get("mtu").Int(); err == nil {
 			nodeInfo.KcpSettings.Mtu = uint32(MtuData)
 		}
@@ -683,9 +680,6 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 	//kcp
 	if nodeInfo.NetworkType == "kcp" {
 		nodeInfo.KcpSettings = &KcpSettings{}
-		if congestionData, err := transportSettings.Get("congestion").Bool(); err == nil {
-			nodeInfo.KcpSettings.Congestion = congestionData
-		}
 		if MtuData, err := transportSettings.Get("mtu").Int(); err == nil {
 			nodeInfo.KcpSettings.Mtu = uint32(MtuData)
 		}

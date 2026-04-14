@@ -215,7 +215,6 @@ type GrpcSettings struct {
 }
 
 type KcpSettings struct {
-	Congestion    bool
 	Mtu           uint32
 }
 

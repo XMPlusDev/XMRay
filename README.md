@@ -296,7 +296,6 @@ Nodes:
   "transportProtocol": {
     "type": "kcp",
     "settings": {
-      "congestion": false,
       "mtu": 1350
     }
   },

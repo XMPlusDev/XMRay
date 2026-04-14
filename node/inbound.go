@@ -56,7 +56,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 
 	sniffingConfig := &conf.SniffingConfig{
 		Enabled:      nodeInfo.Sniffing,
-		DestOverride: &conf.StringList{"http", "tls", "quic", "fakedns"},
+		DestOverride: conf.StringList{"http", "tls", "quic", "fakedns"},
 	}
 	
 	inboundDetourConfig.SniffingConfig = sniffingConfig
@@ -296,9 +296,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			streamSetting.GRPCSettings = grpcSettings
 		case "mkcp", "kcp":
 			kcpSettings := &conf.KCPConfig{}
-			// Check if KcpSettings is not nil
 			if nodeInfo.KcpSettings != nil {
-				kcpSettings.Congestion = &nodeInfo.KcpSettings.Congestion
 				kcpSettings.Mtu = &nodeInfo.KcpSettings.Mtu
 			}
 			streamSetting.KCPSettings = kcpSettings	
