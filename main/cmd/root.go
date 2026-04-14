@@ -64,13 +64,13 @@ func getConfig() *viper.Viper {
 
 func run() error {
 	showVersion()
-	
+
 	// Channel for triggering restarts
 	restartChan := make(chan bool, 1)
 	lastTime := time.Now()
-	
+
 	config := getConfig()
-	
+
 	config.OnConfigChange(func(e fsnotify.Event) {
 		// Discarding event received within a short period of time after receiving an event.
 		if time.Now().After(lastTime.Add(2 * time.Second)) {
@@ -84,85 +84,83 @@ func run() error {
 			}
 		}
 	})
-	
+
 	err := runManager(config, restartChan)
 	if err != nil {
 		// Check if it's a reload signal
 		if err.Error() == "reload" {
-			
 			// Execute terminal command "xmray restart"
 			cmd := exec.Command("xmray", "restart")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
-			
+
 			if err := cmd.Run(); err != nil {
 				log.Errorf("Failed to execute restart command: %s", err)
 				return err
 			}
-			
+
 			return nil
 		}
 		// Fatal error
 		return err
 	}
-	
+
 	return nil
 }
 
-func runManager(config *viper.Viper, restartChan chan bool) error {
+func runManager(config *viper.Viper, restartChan chan bool) (err error) {
 	// Validate config is not nil
 	if config == nil {
 		return fmt.Errorf("config is nil")
 	}
-	
+
 	managerConfig := &manager.Config{}
 	if err := config.Unmarshal(managerConfig); err != nil {
 		return fmt.Errorf("Parse config file %v failed: %s", cfgFile, err)
 	}
-	
+
 	// Validate managerConfig before proceeding
 	if managerConfig == nil {
 		return fmt.Errorf("manager config is nil after unmarshaling")
 	}
-	
+
 	log.SetReportCaller(managerConfig.LogConfig.Level == "debug")
-	
+
 	m := manager.New(managerConfig)
 	if m == nil {
 		return fmt.Errorf("failed to create manager instance")
 	}
-	
+
 	// Start manager with error handling
 	if err := startManagerSafely(m); err != nil {
 		return fmt.Errorf("failed to start manager: %w", err)
 	}
-	
+
 	defer func() {
 		if m != nil {
-			// Recover from potential panic in Close()
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
 						log.Errorf("Panic during manager close: %v", r)
 					}
 				}()
-				if stopErr := m.Close(); stopErr != nil {
+				if closeErr := m.Close(); closeErr != nil {
 					if err == nil {
-						err = fmt.Errorf("stop manager: %w", stopErr)
+						err = fmt.Errorf("stop manager: %w", closeErr)
 					}
 				}
 			}()
 		}
 	}()
-	
+
 	// Explicitly triggering GC to remove garbage from config loading.
 	runtime.GC()
-	
+
 	// Running backend
 	osSignals := make(chan os.Signal, 1)
 	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer signal.Stop(osSignals)
-	
+
 	select {
 	case sig := <-osSignals:
 		// Received termination signal, exit completely
@@ -207,11 +205,11 @@ func startManagerSafely(m *manager.Manager) (err error) {
 			err = fmt.Errorf("panic during instance start: %v\nStack trace:\n%s", r, stack)
 		}
 	}()
-	
+
 	if m == nil {
 		return fmt.Errorf("manager is nil")
 	}
-	
+
 	return m.Start()
 }
 
