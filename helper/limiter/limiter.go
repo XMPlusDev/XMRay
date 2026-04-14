@@ -144,12 +144,10 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		inboundInfo := value.(*InboundInfo)
 		
-		// If GlobalIPLimit is enabled, use Redis cache
 		if inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
 			defer cancel()
 			
-			// Clear Speed Limiter bucket for users who are not online (check Redis)
 			inboundInfo.BucketHub.Range(func(key, value interface{}) bool {
 				email := key.(string)
 				
@@ -157,13 +155,10 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 					subscriptionInfo := v.(SubscriptionInfo)
 					uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 					
-					// Check if user exists in Redis
 					v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 					if err != nil {
-						// User not in Redis, delete bucket
 						inboundInfo.BucketHub.Delete(email)
 					} else {
-						// User exists in Redis - check if this specific email exists in any IPData
 						ipMap := v.(*map[string][]IPData)
 						emailFound := false
 						
@@ -188,22 +183,18 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				return true
 			})
 			
-			// Get all users from SubscriptionInfo to check their IPs in Redis
 			inboundInfo.SubscriptionInfo.Range(func(key, value interface{}) bool {
 				email := key.(string)
 				subscriptionInfo := value.(SubscriptionInfo)
 				
-				// Reformat email for unique key (same as in globalLimit function)
 				uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
 				
-				// Get IP map from Redis
 				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 				if err == nil {
 					ipMap := v.(*map[string][]IPData)
 					modified := false
 
 					for ip, dataList := range *ipMap {
-						// Iterate through all IPData entries for this IP
 						remaining := dataList[:0]
 						for _, data := range dataList {
 							if data.Tag == tag {
@@ -217,7 +208,6 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 						(*ipMap)[ip] = remaining
 					}
 
-					// Push updated map back to Redis if we removed any entries
 					if modified {
 						go pushIP(inboundInfo, uniqueKey, ipMap)
 					}

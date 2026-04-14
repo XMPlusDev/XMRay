@@ -2,6 +2,7 @@ package manager
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -45,7 +46,7 @@ func (m *Manager) loadCore(managerConfig *Config) *core.Instance {
 	logConfig := getDefaultLogConfig()
 	if managerConfig.LogConfig != nil {
 		if _, err := diff.Merge(logConfig, managerConfig.LogConfig, logConfig); err != nil {
-			log.Panicf("Read Log config failed: %s", err)
+			return fmt.Errorf("Read Log config failed: %s", err)
 		}
 	}
 	coreLogConfig.LogLevel = logConfig.Level
@@ -58,43 +59,43 @@ func (m *Manager) loadCore(managerConfig *Config) *core.Instance {
 	coreDnsConfig := &conf.DNSConfig{}
 	if managerConfig.DnsConfigPath != "" {
 		if data, err := os.ReadFile(managerConfig.DnsConfigPath); err != nil {
-			log.Panicf("Failed to read DNS config file at: %s", managerConfig.DnsConfigPath)
+			return fmt.Errorf("Failed to read DNS config file at: %s", managerConfig.DnsConfigPath)
 		} else {
 			if err = json.Unmarshal(data, coreDnsConfig); err != nil {
-				log.Panicf("Failed to unmarshal DNS config: %s", managerConfig.DnsConfigPath)
+				return fmt.Errorf("Failed to unmarshal DNS config: %s", managerConfig.DnsConfigPath)
 			}
 		}
 	}
 	
 	dnsConfig, err := coreDnsConfig.Build()
 	if err != nil {
-		log.Panicf("Failed to understand DNS config, Please check: https://xtls.github.io/config/dns.html for help: %s", err)
+		return fmt.Errorf("Failed to understand DNS config, Please check: https://xtls.github.io/config/dns.html for help: %s", err)
 	}
 
 	// Routing config
 	coreRouterConfig := &conf.RouterConfig{}
 	if managerConfig.RouteConfigPath != "" {
 		if data, err := os.ReadFile(managerConfig.RouteConfigPath); err != nil {
-			log.Panicf("Failed to read Routing config file at: %s", managerConfig.RouteConfigPath)
+			return fmt.Errorf("Failed to read Routing config file at: %s", managerConfig.RouteConfigPath)
 		} else {
 			if err = json.Unmarshal(data, coreRouterConfig); err != nil {
-				log.Panicf("Failed to unmarshal Routing config: %s", managerConfig.RouteConfigPath)
+				return fmt.Errorf("Failed to unmarshal Routing config: %s", managerConfig.RouteConfigPath)
 			}
 		}
 	}
 	routeConfig, err := coreRouterConfig.Build()
 	if err != nil {
-		log.Panicf("Failed to understand Routing config  Please check: https://xtls.github.io/config/routing.html for help: %s", err)
+		return fmt.Errorf("Failed to understand Routing config  Please check: https://xtls.github.io/config/routing.html for help: %s", err)
 	}
 	
 	// Custom Inbound config
 	var coreCustomInboundConfig []conf.InboundDetourConfig
 	if managerConfig.InboundConfigPath != "" {
 		if data, err := os.ReadFile(managerConfig.InboundConfigPath); err != nil {
-			log.Panicf("Failed to read Custom Inbound config file at: %s", managerConfig.OutboundConfigPath)
+			return fmt.Errorf("Failed to read Custom Inbound config file at: %s", managerConfig.OutboundConfigPath)
 		} else {
 			if err = json.Unmarshal(data, &coreCustomInboundConfig); err != nil {
-				log.Panicf("Failed to unmarshal Custom Inbound config: %s", managerConfig.OutboundConfigPath)
+				return fmt.Errorf("Failed to unmarshal Custom Inbound config: %s", managerConfig.OutboundConfigPath)
 			}
 		}
 	}
@@ -102,7 +103,7 @@ func (m *Manager) loadCore(managerConfig *Config) *core.Instance {
 	for _, config := range coreCustomInboundConfig {
 		oc, err := config.Build()
 		if err != nil {
-			log.Panicf("Failed to understand Inbound config, Please check: https://xtls.github.io/config/inbound.html for help: %s", err)
+			return fmt.Errorf("Failed to understand Inbound config, Please check: https://xtls.github.io/config/inbound.html for help: %s", err)
 		}
 		inBoundConfig = append(inBoundConfig, oc)
 	}
@@ -111,10 +112,10 @@ func (m *Manager) loadCore(managerConfig *Config) *core.Instance {
 	var coreCustomOutboundConfig []conf.OutboundDetourConfig
 	if managerConfig.OutboundConfigPath != "" {
 		if data, err := os.ReadFile(managerConfig.OutboundConfigPath); err != nil {
-			log.Panicf("Failed to read Custom Outbound config file at: %s", managerConfig.OutboundConfigPath)
+			return fmt.Errorf("Failed to read Custom Outbound config file at: %s", managerConfig.OutboundConfigPath)
 		} else {
 			if err = json.Unmarshal(data, &coreCustomOutboundConfig); err != nil {
-				log.Panicf("Failed to unmarshal Custom Outbound config: %s", managerConfig.OutboundConfigPath)
+				return fmt.Errorf("Failed to unmarshal Custom Outbound config: %s", managerConfig.OutboundConfigPath)
 			}
 		}
 	}
@@ -122,7 +123,7 @@ func (m *Manager) loadCore(managerConfig *Config) *core.Instance {
 	for _, config := range coreCustomOutboundConfig {
 		oc, err := config.Build()
 		if err != nil {
-			log.Panicf("Failed to understand Outbound config, Please check: https://xtls.github.io/config/outbound.html for help: %s", err)
+			return fmt.Errorf("Failed to understand Outbound config, Please check: https://xtls.github.io/config/outbound.html for help: %s", err)
 		}
 		outBoundConfig = append(outBoundConfig, oc)
 	}
@@ -151,24 +152,34 @@ func (m *Manager) loadCore(managerConfig *Config) *core.Instance {
 	
 	server, err := core.New(config)
 	if err != nil {
-		log.Panicf("failed to create instance: %s", err)
+		return fmt.Errorf("failed to create instance: %s", err)
 	}
-	
-	//log.Printf("Core Version: %s", core.Version())
 
 	return server
 }
 
 // Start the manager
-func (m *Manager) Start() {
+func (m *Manager) Start() error {
 	m.statusLock.Lock()
 	defer m.statusLock.Unlock()
-	// Load Core
+	
+	if m.Server != nil {
+		m.Server.Close()
+	}
+	m.Server = nil
+
 	server := m.loadCore(m.managerConfig)
 	if err := server.Start(); err != nil {
-		log.Panicf("Failed to start instance: %s", err)
+		return fmt.Errorf("Failed to start instance: %s", err)
 	}
 	m.Server = server
+	
+	for _, s := range m.Service {
+		if err := s.Close(); err != nil {
+			return fmt.Errorf("Warning: Failed to close service during restart: %s", err)
+		}
+	}
+	m.Service = nil
 
 	// Load Nodes config
 	for _, nodeConfig := range m.managerConfig.NodesConfig {
@@ -180,7 +191,7 @@ func (m *Manager) Start() {
 		controllerConfig := getDefaultControllerConfig()
 		if nodeConfig.ControllerConfig != nil {
 			if err := mergo.Merge(controllerConfig, nodeConfig.ControllerConfig, mergo.WithOverride); err != nil {
-				log.Panicf("Read Controller Config Failed")
+				return fmt.Errorf("Read Controller Config Failed: %s", err)
 			}
 		}
 		controllerService = controller.New(server, client, controllerConfig)
@@ -198,29 +209,29 @@ func (m *Manager) Start() {
 	for _, s := range m.Service {
 		err := s.Start()
 		if err != nil {
-			log.Panicf("XMPlus fialed to start: %s", err)
+			return fmt.Errorf("XMPlus fialed to start: %s", err)
 		}
 	}
 	m.Running = true
-	return
+	return nil
 }
 
 // Close the manager
-func (m *Manager) Close() {
+func (m *Manager) Close() error {
 	m.statusLock.Lock()
 	defer m.statusLock.Unlock()
 	
 	for _, s := range m.Service {
 		err := s.Close()
 		if err != nil {
-			log.Panicf("XMPlus fialed to close: %s", err)
+			return fmt.Errorf("Warning: Failed to close service during restart: %s", err)
 		}
 	}
 	
 	m.Service = nil
 	m.Server.Close()
 	m.Running = false
-	return
+	return nil
 }
 
 // Restart the manager
@@ -231,7 +242,7 @@ func (m *Manager) Restart() error {
 	// Close all services
 	for _, s := range m.Service {
 		if err := s.Close(); err != nil {
-			log.Printf("Warning: Failed to close service during restart: %s", err)
+			return fmt.Errorf("Warning: Failed to close service during restart: %s", err)
 		}
 	}
 	
@@ -247,7 +258,7 @@ func (m *Manager) Restart() error {
 	// Reload and start the core
 	server := m.loadCore(m.managerConfig)
 	if err := server.Start(); err != nil {
-		log.Panicf("Failed to restart instance: %s", err)
+		return fmt.Errorf("Failed to restart instance: %s", err)
 	}
 	m.Server = server
 	
@@ -275,7 +286,7 @@ func (m *Manager) Restart() error {
 	// Start all services
 	for _, s := range m.Service {
 		if err := s.Start(); err != nil {
-			return err
+			return fmt.Errorf("Failed to start service: %s", err)
 		}
 	}
 	

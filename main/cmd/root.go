@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"path"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
-	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
@@ -125,11 +125,7 @@ func runManager(config *viper.Viper, restartChan chan bool) error {
 		return fmt.Errorf("manager config is nil after unmarshaling")
 	}
 	
-	if managerConfig.LogConfig.Level == "debug" {
-		log.SetReportCaller(true)
-	} else {
-		log.SetReportCaller(false)
-	}
+	log.SetReportCaller(managerConfig.LogConfig.Level == "debug")
 	
 	m := manager.New(managerConfig)
 	if m == nil {
@@ -150,7 +146,11 @@ func runManager(config *viper.Viper, restartChan chan bool) error {
 						log.Errorf("Panic during manager close: %v", r)
 					}
 				}()
-				m.Close()
+				if stopErr := m.Close(); stopErr != nil {
+					if err == nil {
+						err = fmt.Errorf("stop manager: %w", stopErr)
+					}
+				}
 			}()
 		}
 	}()
@@ -174,11 +174,37 @@ func runManager(config *viper.Viper, restartChan chan bool) error {
 	}
 }
 
+func formatStack(stack []byte) string {
+	lines := strings.Split(strings.TrimSpace(string(stack)), "\n")
+	var b strings.Builder
+
+	if len(lines) > 0 {
+		b.WriteString(lines[0])
+		b.WriteByte('\n')
+		lines = lines[1:]
+	}
+
+	for i := 0; i+1 < len(lines); i += 2 {
+		fn := strings.TrimSpace(lines[i])
+		loc := strings.TrimSpace(lines[i+1])
+		b.WriteString(fmt.Sprintf("  → %s\n      %s\n", fn, loc))
+	}
+
+	if len(lines)%2 != 0 {
+		b.WriteString("  → ")
+		b.WriteString(strings.TrimSpace(lines[len(lines)-1]))
+		b.WriteByte('\n')
+	}
+
+	return b.String()
+}
+
 // startManagerSafely starts the manager with panic recovery
 func startManagerSafely(m *manager.Manager) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic during manager start: %v\n%s", r, debug.Stack())
+			stack := formatStack(debug.Stack())
+			err = fmt.Errorf("panic during instance start: %v\nStack trace:\n%s", r, stack)
 		}
 	}()
 	
@@ -186,8 +212,7 @@ func startManagerSafely(m *manager.Manager) (err error) {
 		return fmt.Errorf("manager is nil")
 	}
 	
-	m.Start()
-	return nil
+	return m.Start()
 }
 
 func Execute() error {
