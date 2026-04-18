@@ -15,10 +15,6 @@ import (
 	"github.com/xmplusdev/xmray/helper/task"
 )
 
-type ManagerInterface interface {
-	Restart() error
-}
-
 type Controller struct {
 	server       *core.Instance
 	config       *node.Config
@@ -32,8 +28,6 @@ type Controller struct {
 	Relay        bool
 	subscriptionList  *[]api.SubscriptionInfo
 	taskManager  *task.Manager
-	startAt      time.Time
-	manager      ManagerInterface
 	nodeManager  *node.Manager 
 	subManager   *subscription.Manager
 }
@@ -44,28 +38,12 @@ func New(server *core.Instance, api api.API, config *node.Config) *Controller {
 		server:      server,
 		config:      config,
 		client:      api,
-		startAt:     time.Now(),
 		taskManager: task.NewManager(), 
 		nodeManager: node.NewManager(server),
 		subManager:  subscription.NewManager(server, api),
 	}
 
 	return controller
-}
-
-// SetManager sets the manager reference for this controller
-func (c *Controller) SetManager(manager ManagerInterface) {
-	c.manager = manager
-}
-
-// RestartManager restarts the entire manager
-func (c *Controller) RestartManager() error {
-	if c.manager == nil {
-		return fmt.Errorf("manager reference not set")
-	}
-	
-	//log.Printf("%s Initiating full manager restart", c.logPrefix())
-	return c.manager.Restart()
 }
 
 // Start implement the Start() function of the service interface

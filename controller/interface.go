@@ -4,10 +4,4 @@ package controller
 type ControllerInterface interface {
 	Start() error
 	Close() error
-	Restart
-}
-
-type Restart interface {
-	Start() error
-	Close() error
 }

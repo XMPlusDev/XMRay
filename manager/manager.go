@@ -30,11 +30,6 @@ type Manager struct {
 	Running       bool
 }
 
-// ManagerInterface for dependency injection
-type ManagerInterface interface {
-	Restart() error
-}
-
 func New(managerConfig *Config) *Manager {
 	m := &Manager{managerConfig: managerConfig}
 	return m
@@ -176,6 +171,8 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("Failed to start instance: %s", err)
 	}
 	m.Server = server
+	
+	log.Println("XMRay started successfully")
 
 	for _, s := range m.Service {
 		if err := s.Close(); err != nil {
@@ -199,18 +196,13 @@ func (m *Manager) Start() error {
 		}
 		controllerService = controller.New(server, client, controllerConfig)
 
-		// Set manager reference if controller supports it
-		if ctrl, ok := controllerService.(interface{ SetManager(ManagerInterface) }); ok {
-			ctrl.SetManager(m)
-		}
-
 		m.Service = append(m.Service, controllerService)
 	}
 
 	// Start all the service
 	for _, s := range m.Service {
 		if err := s.Start(); err != nil {
-			return fmt.Errorf("XMPlus failed to start: %s", err)
+			return fmt.Errorf("XMRay failed to start: %s", err)
 		}
 	}
 	m.Running = true
@@ -231,70 +223,6 @@ func (m *Manager) Close() error {
 	m.Service = nil
 	m.Server.Close()
 	m.Running = false
-	return nil
-}
-
-// Restart the manager
-func (m *Manager) Restart() error {
-	m.statusLock.Lock()
-	defer m.statusLock.Unlock()
-
-	// Close all services
-	for _, s := range m.Service {
-		if err := s.Close(); err != nil {
-			return fmt.Errorf("Warning: Failed to close service during restart: %s", err)
-		}
-	}
-
-	// Close the server
-	if m.Server != nil {
-		m.Server.Close()
-	}
-
-	// Clear services
-	m.Service = nil
-	m.Running = false
-
-	// Reload and start the core
-	server, err := m.loadCore(m.managerConfig)
-	if err != nil {
-		return err
-	}
-	if err := server.Start(); err != nil {
-		return fmt.Errorf("Failed to restart instance: %s", err)
-	}
-	m.Server = server
-
-	// Reload and start services
-	for _, nodeConfig := range m.managerConfig.NodesConfig {
-		var apiClient api.API
-		apiClient = api.New(nodeConfig.ApiConfig)
-
-		var controllerService controller.ControllerInterface
-		// Register controller service
-		controllerConfig := getDefaultControllerConfig()
-		if nodeConfig.ControllerConfig != nil {
-			if err := mergo.Merge(controllerConfig, nodeConfig.ControllerConfig, mergo.WithOverride); err != nil {
-				return err
-			}
-		}
-		controllerService = controller.New(server, apiClient, controllerConfig)
-		// Set manager reference so controllers can trigger restarts
-		if ctrl, ok := controllerService.(interface{ SetManager(ManagerInterface) }); ok {
-			ctrl.SetManager(m)
-		}
-		m.Service = append(m.Service, controllerService)
-	}
-
-	// Start all services
-	for _, s := range m.Service {
-		if err := s.Start(); err != nil {
-			return fmt.Errorf("Failed to start service: %s", err)
-		}
-	}
-
-	m.Running = true
-	log.Println("XMPlus restarted successfully")
 	return nil
 }
 
