@@ -263,7 +263,7 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	gopkg.in/yaml.v2 v2.4.3 // indirect
-	gopkg.in/yaml.v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v2 v2.4.3 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.zx2c4.com/wireguard/windows v0.6.1 // indirect
 )
