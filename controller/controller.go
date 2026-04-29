@@ -352,7 +352,6 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
 					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
 				} else {
-					log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
 					c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
 				}
 				
