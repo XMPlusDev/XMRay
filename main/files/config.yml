@@ -6,7 +6,6 @@ Log:
   MaskAddress: half                              # half, full, quater
 DnsConfigPath: /etc/XMRay/dns.json              #https://xtls.github.io/config/dns.html
 RouteConfigPath: #/etc/XMRay/route.json         #https://xtls.github.io/config/routing.html
-InboundConfigPath: #/etc/XMRay/inbound.json     #https://xtls.github.io/config/inbound.html#inboundobject
 OutboundConfigPath: #/etc/XMRay/outbound.json   #https://xtls.github.io/config/outbound.html
 ConnectionConfig:
   Handshake: 8 

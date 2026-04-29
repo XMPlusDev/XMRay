@@ -1,4 +1,4 @@
-package manager
+package instance
 
 import (
 	"encoding/json"
@@ -14,33 +14,35 @@ import (
 	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
+	"github.com/xtls/xray-core/app/dispatcher"
 
 	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/controller"
+	"github.com/xmplusdev/xmray/helper/limiter"
+	limitDispatcher "github.com/xmplusdev/xmray/core/dispatcher"
 	_ "github.com/xmplusdev/xmray/main/distro/all"
-	"github.com/xmplusdev/xmray/app/dispatcher"
 )
 
-// Manager Structure
-type Manager struct {
+type Instance struct {
 	statusLock    sync.Mutex
-	managerConfig *Config
+	instanceConfig *Config
 	Server        *core.Instance
+	Dispatcher    *limitDispatcher.LimitingDispatcher
 	Service       []controller.ControllerInterface
 	Running       bool
 }
 
-func New(managerConfig *Config) *Manager {
-	m := &Manager{managerConfig: managerConfig}
-	return m
+func New(instanceConfig *Config) *Instance {
+	i := &Instance{instanceConfig: instanceConfig}
+	return i
 }
 
-func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
+func (i *Instance) loadCore(instanceConfig *Config) (*core.Instance, error) {
 	// Log Config
 	coreLogConfig := &conf.LogConfig{}
 	logConfig := getDefaultLogConfig()
-	if managerConfig.LogConfig != nil {
-		if _, err := diff.Merge(logConfig, managerConfig.LogConfig, logConfig); err != nil {
+	if instanceConfig.LogConfig != nil {
+		if _, err := diff.Merge(logConfig, instanceConfig.LogConfig, logConfig); err != nil {
 			return nil, fmt.Errorf("Read Log config failed: %s", err)
 		}
 	}
@@ -52,16 +54,15 @@ func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
 
 	// DNS config
 	coreDnsConfig := &conf.DNSConfig{}
-	if managerConfig.DnsConfigPath != "" {
-		data, err := os.ReadFile(managerConfig.DnsConfigPath)
+	if instanceConfig.DnsConfigPath != "" {
+		data, err := os.ReadFile(instanceConfig.DnsConfigPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read DNS config file at: %s", managerConfig.DnsConfigPath)
+			return nil, fmt.Errorf("Failed to read DNS config file at: %s", instanceConfig.DnsConfigPath)
 		}
 		if err = json.Unmarshal(data, coreDnsConfig); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal DNS config: %s", managerConfig.DnsConfigPath)
+			return nil, fmt.Errorf("Failed to unmarshal DNS config: %s", instanceConfig.DnsConfigPath)
 		}
 	}
-
 	dnsConfig, err := coreDnsConfig.Build()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to understand DNS config, Please check: https://xtls.github.io/config/dns.html for help: %s", err)
@@ -69,13 +70,13 @@ func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
 
 	// Routing config
 	coreRouterConfig := &conf.RouterConfig{}
-	if managerConfig.RouteConfigPath != "" {
-		data, err := os.ReadFile(managerConfig.RouteConfigPath)
+	if instanceConfig.RouteConfigPath != "" {
+		data, err := os.ReadFile(instanceConfig.RouteConfigPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read Routing config file at: %s", managerConfig.RouteConfigPath)
+			return nil, fmt.Errorf("Failed to read Routing config file at: %s", instanceConfig.RouteConfigPath)
 		}
 		if err = json.Unmarshal(data, coreRouterConfig); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal Routing config: %s", managerConfig.RouteConfigPath)
+			return nil, fmt.Errorf("Failed to unmarshal Routing config: %s", instanceConfig.RouteConfigPath)
 		}
 	}
 	routeConfig, err := coreRouterConfig.Build()
@@ -83,35 +84,17 @@ func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
 		return nil, fmt.Errorf("Failed to understand Routing config, Please check: https://xtls.github.io/config/routing.html for help: %s", err)
 	}
 
-	// Custom Inbound config
-	var coreCustomInboundConfig []conf.InboundDetourConfig
-	if managerConfig.InboundConfigPath != "" {
-		data, err := os.ReadFile(managerConfig.InboundConfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read Custom Inbound config file at: %s", managerConfig.InboundConfigPath)
-		}
-		if err = json.Unmarshal(data, &coreCustomInboundConfig); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal Custom Inbound config: %s", managerConfig.InboundConfigPath)
-		}
-	}
 	var inBoundConfig []*core.InboundHandlerConfig
-	for _, config := range coreCustomInboundConfig {
-		oc, err := config.Build()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to understand Inbound config, Please check: https://xtls.github.io/config/inbound.html for help: %s", err)
-		}
-		inBoundConfig = append(inBoundConfig, oc)
-	}
 
 	// Custom Outbound config
 	var coreCustomOutboundConfig []conf.OutboundDetourConfig
-	if managerConfig.OutboundConfigPath != "" {
-		data, err := os.ReadFile(managerConfig.OutboundConfigPath)
+	if instanceConfig.OutboundConfigPath != "" {
+		data, err := os.ReadFile(instanceConfig.OutboundConfigPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read Custom Outbound config file at: %s", managerConfig.OutboundConfigPath)
+			return nil, fmt.Errorf("Failed to read Custom Outbound config file at: %s", instanceConfig.OutboundConfigPath)
 		}
 		if err = json.Unmarshal(data, &coreCustomOutboundConfig); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal Custom Outbound config: %s", managerConfig.OutboundConfigPath)
+			return nil, fmt.Errorf("Failed to unmarshal Custom Outbound config: %s", instanceConfig.OutboundConfigPath)
 		}
 	}
 	var outBoundConfig []*core.OutboundHandlerConfig
@@ -124,7 +107,7 @@ func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
 	}
 
 	// Policy config
-	levelPolicyConfig := parseConnectionConfig(managerConfig.ConnectionConfig)
+	levelPolicyConfig := parseConnectionConfig(instanceConfig.ConnectionConfig)
 	corePolicyConfig := &conf.PolicyConfig{}
 	corePolicyConfig.Levels = map[uint32]*conf.Policy{0: levelPolicyConfig}
 	policyConfig, _ := corePolicyConfig.Build()
@@ -133,7 +116,7 @@ func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
 	config := &core.Config{
 		App: []*serial.TypedMessage{
 			serial.ToTypedMessage(coreLogConfig.Build()),
-			serial.ToTypedMessage(&dispatcher.Config{}),
+			serial.ToTypedMessage(&dispatcher.Config{}), 
 			serial.ToTypedMessage(&stats.Config{}),
 			serial.ToTypedMessage(&proxyman.InboundConfig{}),
 			serial.ToTypedMessage(&proxyman.OutboundConfig{}),
@@ -154,75 +137,81 @@ func (m *Manager) loadCore(managerConfig *Config) (*core.Instance, error) {
 }
 
 // Start the manager
-func (m *Manager) Start() error {
-	m.statusLock.Lock()
-	defer m.statusLock.Unlock()
-
-	if m.Server != nil {
-		m.Server.Close()
-	}
-	m.Server = nil
-
-	server, err := m.loadCore(m.managerConfig)
+func (i *Instance) Start() error {
+	i.statusLock.Lock()
+	defer i.statusLock.Unlock()
+	
+	server, err := i.loadCore(i.instanceConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to load config: %s", err)
 	}
-	if err := server.Start(); err != nil {
-		return fmt.Errorf("Failed to start instance: %s", err)
-	}
-	m.Server = server
 	
-	log.Println("XMRay started successfully")
+	lim := limiter.New()
+	ld, err := limitDispatcher.RegisterOn(server, lim)
+	if err != nil {
+		return fmt.Errorf("Failed to register limiting dispatcher: %s", err)
+	}
 
-	for _, s := range m.Service {
+	for _, s := range i.Service {
 		if err := s.Close(); err != nil {
 			return fmt.Errorf("Warning: Failed to close service during restart: %s", err)
 		}
 	}
-	m.Service = nil
+	i.Service = nil
 
-	// Load Nodes config
-	for _, nodeConfig := range m.managerConfig.NodesConfig {
+	if i.Server != nil {
+		i.Server.Close()
+	}
+	i.Server = nil
+	
+	if i.Dispatcher != nil {
+		i.Dispatcher = nil
+	}
+
+	if err := server.Start(); err != nil {
+		return fmt.Errorf("Failed to start instance: %s", err)
+	}
+	i.Server = server
+	i.Dispatcher = ld
+
+	log.Println("XMRay started successfully")
+
+	for _, nodeConfig := range i.instanceConfig.NodesConfig {
 		var client api.API
 		client = api.New(nodeConfig.ApiConfig)
 
-		var controllerService controller.ControllerInterface
-		// Register controller service
 		controllerConfig := getDefaultControllerConfig()
 		if nodeConfig.ControllerConfig != nil {
 			if err := mergo.Merge(controllerConfig, nodeConfig.ControllerConfig, mergo.WithOverride); err != nil {
 				return fmt.Errorf("Read Controller Config Failed: %s", err)
 			}
 		}
-		controllerService = controller.New(server, client, controllerConfig)
-
-		m.Service = append(m.Service, controllerService)
+		controllerService := controller.New(server, client, controllerConfig, i.Dispatcher)
+		i.Service = append(i.Service, controllerService)
 	}
 
-	// Start all the service
-	for _, s := range m.Service {
+	for _, s := range i.Service {
 		if err := s.Start(); err != nil {
 			return fmt.Errorf("XMRay failed to start: %s", err)
 		}
 	}
-	m.Running = true
+	i.Running = true
 	return nil
 }
 
-// Close the manager
-func (m *Manager) Close() error {
-	m.statusLock.Lock()
-	defer m.statusLock.Unlock()
+func (i *Instance) Close() error {
+	i.statusLock.Lock()
+	defer i.statusLock.Unlock()
 
-	for _, s := range m.Service {
+	for _, s := range i.Service {
 		if err := s.Close(); err != nil {
 			return fmt.Errorf("Warning: Failed to close service during restart: %s", err)
 		}
 	}
-
-	m.Service = nil
-	m.Server.Close()
-	m.Running = false
+	i.Service = nil
+	i.Dispatcher = nil
+	i.Server.Close()
+	i.Running = false
 	return nil
 }
 
@@ -242,6 +231,5 @@ func parseConnectionConfig(c *ConnectionConfig) (policy *conf.Policy) {
 		DownlinkOnly:      &connectionConfig.DownlinkOnly,
 		BufferSize:        &connectionConfig.BufferSize,
 	}
-
 	return
 }

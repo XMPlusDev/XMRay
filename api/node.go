@@ -11,7 +11,6 @@ import (
 	"github.com/bitly/go-simplejson"
 )
 
-// GetNodeInfo retrieves node information from the API
 func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 
 	server := new(serverConfig)
@@ -56,7 +55,6 @@ func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 	return nodeInfo, nil
 }
 
-// NodeResponse parses server config into NodeInfo
 func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	nodeInfo := &NodeInfo{}
 
@@ -145,7 +143,6 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	return nodeInfo, nil
 }
 
-// parseNetworkSettings extracts network transport configuration
 func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *NodeInfo) error {
 	
 	transport, ok := transportData.CheckGet("transportProtocol")
@@ -204,7 +201,7 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 	}
 	
 	//raw
-	if nodeInfo.NetworkType == "raw" {
+	if nodeInfo.NetworkType == "raw" || nodeInfo.NetworkType == "tcp" {
 		nodeInfo.RawSettings = &RawSettings{}
 		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
 			nodeInfo.RawSettings.AcceptProxyProtocol = acceptProxy.MustBool()
@@ -275,12 +272,10 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 	return nil
 }
 
-// parseMaskSettings extracts mask configuration
 func (c *Client) parseMaskSettings(maskSettings *simplejson.Json, nodeInfo *NodeInfo) error {
 	return parseMaskSettingsInto(maskSettings, &nodeInfo.MaskSettings)
 }
 
-// parseSocketSettings extracts socket configuration
 func (c *Client) parseSocketSettings(socketSettings *simplejson.Json, nodeInfo *NodeInfo) error {
 	nodeInfo.SocketSettings = &SocketSettings{}
 	nodeInfo.SocketSettings.Enabled = true
@@ -318,7 +313,6 @@ func (c *Client) parseSocketSettings(socketSettings *simplejson.Json, nodeInfo *
 	return nil
 }
 
-// parseSecuritySettings extracts security configuration
 func (c *Client) parseSecuritySettings(securityData *simplejson.Json, nodeInfo *NodeInfo) error {
 	nodeInfo.SecurityType = "none"
 
@@ -407,7 +401,6 @@ func (c *Client) parseSecuritySettings(securityData *simplejson.Json, nodeInfo *
 	return nil
 }
 
-// parseBlockingRules extracts blocking rules configuration
 func (c *Client) parseBlockingRules(ruleData *simplejson.Json, nodeInfo *NodeInfo) {
 	nodeInfo.BlockingRules = &BlockingRules{}
 
@@ -433,7 +426,6 @@ func (c *Client) parseBlockingRules(ruleData *simplejson.Json, nodeInfo *NodeInf
 	}
 }
 
-// GetTransitNode retrieves relay/transit node information
 func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 
 	s := c.resp.Load().(*serverConfig)
@@ -504,9 +496,6 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	return nodeInfo, nil
 }
 
-// selectSinglePort selects a single port from a port string.
-// Supports formats: "53", "1000-2000", or "53,443,1000-2000"
-// Strategy: randomly selects from available ports
 func selectSinglePort(portString string) (uint32, error) {
 	if portString == "" {
 		return 0, fmt.Errorf("port string is empty")
@@ -617,13 +606,10 @@ func selectSinglePort(portString string) (uint32, error) {
 	return selectedPort, nil
 }
 
-// parseRelayMaskSettings extracts mask configuration
 func (c *Client) parseRelayMaskSettings(maskSettings *simplejson.Json, nodeInfo *RelayNodeInfo) error {
 	return parseMaskSettingsInto(maskSettings, &nodeInfo.MaskSettings)
 }
 
-
-// parseRelayNetworkSettings extracts relay network configuration
 func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeInfo *RelayNodeInfo) error {
 	transport, ok := transportData.CheckGet("transportProtocol")
 	if !ok {
@@ -663,7 +649,7 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 	}
 	
 	//raw
-	if nodeInfo.NetworkType == "raw" {
+	if nodeInfo.NetworkType == "raw" || nodeInfo.NetworkType == "tcp" {
 		nodeInfo.RawSettings = &RawSettings{}
 		if acceptProxy, protocolExists := transportSettings.CheckGet("acceptProxyProtocol"); protocolExists {
 			nodeInfo.RawSettings.AcceptProxyProtocol = acceptProxy.MustBool()
@@ -734,7 +720,6 @@ func (c *Client) parseRelayNetworkSettings(transportData *simplejson.Json, nodeI
 	return nil
 }
 
-// parseRelaySecuritySettings extracts relay security configuration
 func (c *Client) parseRelaySecuritySettings(securityData *simplejson.Json, nodeInfo *RelayNodeInfo) {
 	nodeInfo.SecurityType = "none"
 

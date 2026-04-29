@@ -7,23 +7,29 @@ import (
 	_ "github.com/xtls/xray-core/app/proxyman/outbound"
 
 	// Required features. Can't remove unless there is replacements.
-	// _ "github.com/xtls/xray-core/app/dispatcher"
-	_ "github.com/xmplusdev/xmray/app/dispatcher"
+	_ "github.com/xtls/xray-core/app/dispatcher"
 
 	// Default commander and all its services. This is an optional feature.
 	_ "github.com/xtls/xray-core/app/commander"
 	_ "github.com/xtls/xray-core/app/log/command"
 	_ "github.com/xtls/xray-core/app/proxyman/command"
 	_ "github.com/xtls/xray-core/app/stats/command"
+	
+	// Developer preview services
+	_ "github.com/xtls/xray-core/app/observatory/command"
 
 	// Other optional features.
 	_ "github.com/xtls/xray-core/app/dns"
+	_ "github.com/xtls/xray-core/app/dns/fakedns"
 	_ "github.com/xtls/xray-core/app/log"
+	_ "github.com/xtls/xray-core/app/geodata"
 	_ "github.com/xtls/xray-core/app/metrics"
 	_ "github.com/xtls/xray-core/app/policy"
 	_ "github.com/xtls/xray-core/app/reverse"
 	_ "github.com/xtls/xray-core/app/router"
 	_ "github.com/xtls/xray-core/app/stats"
+	
+	_ "github.com/xtls/xray-core/transport/internet/tagged/taggedimpl"
 
 	// Inbound and outbound proxies.
 	_ "github.com/xtls/xray-core/proxy/blackhole"

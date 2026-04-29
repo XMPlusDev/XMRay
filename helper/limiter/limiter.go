@@ -223,16 +223,12 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 	return &onlineIP, nil
 }
 
-func (l *Limiter) GetLimiter(tag string, email string, ip string, address string) (limiter *rate.Limiter, isSpeedLimited bool, Reject bool) {
+func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate.Limiter, isSpeedLimited bool, Reject bool) {
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		var (
 			SpeedLimit  uint64 = 0
 			ipLimit, uid int
 		)
-		
-		if ip == "" {
-			ip = address
-		}
 
 		inboundInfo := value.(*InboundInfo)
 		nodeLimit := inboundInfo.NodeSpeedLimit

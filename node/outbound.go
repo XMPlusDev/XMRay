@@ -133,7 +133,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 					},
 				},
 			}
-		case "Shadowsocks":
+		case "shadowsocks":
 			protocol = "shadowsocks"
 			proxySetting = struct {
 				Servers []*conf.ShadowsocksServerTarget `json:"servers"`

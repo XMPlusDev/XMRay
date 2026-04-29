@@ -13,11 +13,13 @@ import (
 	"github.com/xmplusdev/xmray/subscription"
 	"github.com/xmplusdev/xmray/helper/cert"
 	"github.com/xmplusdev/xmray/helper/task"
+	"github.com/xmplusdev/xmray/core/dispatcher"
 )
 
 type Controller struct {
 	server       *core.Instance
 	config       *node.Config
+	dispatcher   *dispatcher.LimitingDispatcher 
 	clientInfo   api.ClientInfo
 	client       api.API
 	nodeInfo     *api.NodeInfo
@@ -33,14 +35,14 @@ type Controller struct {
 }
 
 // New return a Controller service with default parameters.
-func New(server *core.Instance, api api.API, config *node.Config) *Controller {
+func New(server *core.Instance, api api.API, config *node.Config, dispatcher *dispatcher.LimitingDispatcher) *Controller {
 	controller := &Controller{
 		server:      server,
 		config:      config,
 		client:      api,
 		taskManager: task.NewManager(), 
-		nodeManager: node.NewManager(server),
-		subManager:  subscription.NewManager(server, api),
+		nodeManager: node.NewManager(server, dispatcher),
+		subManager:  subscription.NewManager(server, api, dispatcher),
 	}
 
 	return controller
@@ -252,6 +254,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				log.Print(err)
 				return nil
 			}
+			
 			err = c.nodeManager.RemoveBlockingRules(oldTag)
 			if err != nil {
 				log.Print(err)

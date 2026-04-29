@@ -6,14 +6,13 @@ import (
 	"log"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/app/dispatcher"
+	"github.com/xmplusdev/xmray/core/dispatcher"
 	
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
 	"github.com/xtls/xray-core/features/stats"
-	"github.com/xtls/xray-core/features/routing"
 )
 
 // Manager handles subscription-related operations
@@ -22,17 +21,17 @@ type Manager struct {
 	client  api.API  
 	ibm    inbound.Manager
 	stm    stats.Manager
-	dispatcher   *dispatcher.DefaultDispatcher
+	dispatcher *dispatcher.LimitingDispatcher
 }
 
 // NewManager creates a new subscription manager
-func NewManager(server *core.Instance, client api.API) *Manager {
+func NewManager(server *core.Instance, client api.API, dispatcher *dispatcher.LimitingDispatcher) *Manager {
 	return &Manager{
 		server: server,
 		client: client,
 		ibm:    server.GetFeature(inbound.ManagerType()).(inbound.Manager),
 		stm:    server.GetFeature(stats.ManagerType()).(stats.Manager),
-		dispatcher:  server.GetFeature(routing.DispatcherType()).(*dispatcher.DefaultDispatcher),
+		dispatcher:  dispatcher,
 	}
 }
 
@@ -300,5 +299,5 @@ func (m *Manager) resetTraffic(upCounterList *[]stats.Counter, downCounterList *
 }
 
 func (m *Manager) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
-	return m.dispatcher.Limiter.GetOnlineIPs(tag)
+	return m.dispatcher.GetOnlineIPs(tag)
 }

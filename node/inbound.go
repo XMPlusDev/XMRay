@@ -20,7 +20,6 @@ import (
 )
 
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {
-	// Add nil checks at the beginning
 	if config == nil {
 		return nil, fmt.Errorf("config is nil")
 	}
@@ -30,14 +29,11 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	
 	inboundDetourConfig := &conf.InboundDetourConfig{}
 	
-	if nodeInfo.NodeType == "Shadowsocks-Plugin" {
-		inboundDetourConfig.ListenOn = &conf.Address{Address: net.ParseAddress("127.0.0.1")}
-	} else if nodeInfo.ListeningIP != "" {
+	if nodeInfo.ListeningIP != "" {
 		ipAddress := net.ParseAddress(nodeInfo.ListeningIP)
 		inboundDetourConfig.ListenOn = &conf.Address{Address: ipAddress}
 	}
 	
-	// Parse port using the same function as router.go
 	portRanges, err := parsePortString(nodeInfo.ListeningPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse listening port: %w", err)
@@ -105,13 +101,13 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			} else {
 				proxySetting = &conf.TrojanServerConfig{}
 			}
-		case "shadowsocks", "Shadowsocks-Plugin":
+		case "shadowsocks":
 			protocol = "shadowsocks"
 			cipher := strings.ToLower(nodeInfo.Cipher)
 
 			shadowsocksSetting := &conf.ShadowsocksServerConfig{
 				Cipher:   cipher,
-				Password: nodeInfo.ServerKey, // shadowsocks2022 shareKey
+				Password: nodeInfo.ServerKey, 
 			}
 
 			b := make([]byte, 32)
@@ -128,15 +124,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			shadowsocksSetting.NetworkList = &conf.NetworkList{"tcp", "udp"}
 			
 			proxySetting = shadowsocksSetting
-		case "dokodemo-door":
-			protocol = "dokodemo-door"
-			proxySetting = struct {
-				Host        string   `json:"address"`
-				NetworkList []string `json:"network"`
-			}{
-				Host:        "v1.mux.cool",
-				NetworkList: []string{"tcp", "udp"},
-			}
 		case "hysteria":	
 			protocol = "hysteria" 
 			proxySetting = &conf.HysteriaServerConfig{
@@ -165,7 +152,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	switch networkType {
 		case "tcp", "raw":
 			tcpSetting := &conf.TCPConfig{}
-			// Check if RawSettings is not nil before accessing Header
 			if nodeInfo.RawSettings != nil {
 				tcpSetting.HeaderConfig = nodeInfo.RawSettings.Header
 				tcpSetting.AcceptProxyProtocol = nodeInfo.RawSettings.AcceptProxyProtocol
@@ -173,7 +159,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			streamSetting.TCPSettings = tcpSetting
 		case "websocket", "ws":
 			wsSettings := &conf.WebSocketConfig{}
-			// Check if WsSettings is not nil
 			if nodeInfo.WsSettings != nil {
 				wsSettings.Path = nodeInfo.WsSettings.Path
 				wsSettings.Host = nodeInfo.WsSettings.Host
@@ -183,7 +168,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			streamSetting.WSSettings = wsSettings	
 		case "httpupgrade":
 			httpupgradeSettings := &conf.HttpUpgradeConfig{}
-			// Check if HttpSettings is not nil
 			if nodeInfo.HttpSettings != nil {
 				httpupgradeSettings.AcceptProxyProtocol = nodeInfo.HttpSettings.AcceptProxyProtocol
 				httpupgradeSettings.Host = nodeInfo.HttpSettings.Host
@@ -193,7 +177,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		case "xhttp", "splithttp":
 			var ScStreamUpA, ScStreamUpB int32 = 20, 80
 			
-			// Check if XhttpSettings is not nil
 			if nodeInfo.XhttpSettings == nil {
 				return nil, fmt.Errorf("XhttpSettings is required for xhttp transport")
 			}
@@ -283,7 +266,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			streamSetting.XHTTPSettings = xhttpSettings		
 		case "grpc":
 			grpcSettings := &conf.GRPCConfig{}
-			// Check if GrpcSettings is not nil
 			if nodeInfo.GrpcSettings != nil {
 				grpcSettings.ServiceName = nodeInfo.GrpcSettings.ServiceName
 				grpcSettings.Authority = nodeInfo.GrpcSettings.Authority
@@ -337,7 +319,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		streamSetting.FinalMask = finalMaskSettings
 	}
 	
-	// Check if TlsSettings is not nil before accessing its fields
 	if nodeInfo.SecurityType == "tls" && nodeInfo.TlsSettings != nil && nodeInfo.TlsSettings.CertMode != "none" {
 		streamSetting.Security = "tls"
 		certFile, keyFile, err := getCertFile(config.CertConfig, nodeInfo.TlsSettings.CertMode, nodeInfo.TlsSettings.CertDomainName)
@@ -363,7 +344,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		streamSetting.TLSSettings = tlsSettings
 	}
 
-	// Check if RealitySettings is not nil
 	if nodeInfo.SecurityType == "reality" && nodeInfo.RealitySettings != nil {
 		streamSetting.Security = "reality"
 		
@@ -389,7 +369,6 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		streamSetting.REALITYSettings = realitySettings
 	}
 
-	// Check if SocketSettings is not nil
 	if nodeInfo.SocketSettings != nil && nodeInfo.SocketSettings.Enabled {
 		sockoptConfig := &conf.SocketConfig{}
 		
