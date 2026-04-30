@@ -7,7 +7,7 @@ require (
 	github.com/bitly/go-simplejson v0.5.1
 	github.com/eko/gocache/lib/v4 v4.2.3
 	github.com/eko/gocache/store/redis/v4 v4.2.6
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/r3labs/diff/v2 v2.15.1
@@ -21,7 +21,6 @@ require (
 	golang.org/x/crypto v0.50.0
 	golang.org/x/net v0.53.0
 	golang.org/x/time v0.15.0
-	google.golang.org/protobuf v1.36.11
 	lukechampine.com/blake3 v1.4.1
 )
 
@@ -249,6 +248,7 @@ require (
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b // indirect
 	github.com/peterhellberg/link v1.2.0 // indirect
 	github.com/regfish/regfish-dnsapi-go v0.1.1 // indirect
+	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/selectel/go-selvpcclient/v4 v4.2.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
@@ -265,4 +265,5 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.zx2c4.com/wireguard/windows v1.0.1 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
