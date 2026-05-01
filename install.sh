@@ -188,10 +188,6 @@ install_XMRay() {
 		cp outbound.json /etc/XMRay/
 	fi
 	
-	if [[ ! -f /etc/XMRay/inbound.json ]]; then
-		cp inbound.json /etc/XMRay/
-	fi
-	
     if [[ ! -f /etc/XMRay/config.yml ]]; then
         cp config.yml /etc/XMRay/
     else
