@@ -886,24 +886,25 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 	if udpHopData, isOK := qp.CheckGet("udpHop"); isOK {
 		hop := &UdpHopSettings{}
 		if portsData, portsOK := udpHopData.CheckGet("ports"); portsOK {
-			ports, err := portsData.String()
+			var portStr string
+			if s, err := portsData.String(); err == nil {
+				portStr = s
+			} else if arr, err := portsData.StringArray(); err == nil {
+				portStr = strings.Join(arr, ",")
+			} else {
+				return nil, fmt.Errorf("udpHop.ports: unsupported type, expected string or array")
+			}
+
+			portRanges, err := parsePortString(portStr)
 			if err != nil {
-				return nil, fmt.Errorf("udpHop.ports: %w", err)
+				return nil, fmt.Errorf("failed to parse UdpHop ports: %w", err)
 			}
-			
-			if portRanges, err := parsePortString(ports); err != nil {
-				return nil,fmt.Errorf("failed to parse UdpHop ports: %w", err)
-			}
-			
+
 			if len(portRanges) == 0 {
-				return nil, fmt.Errorf("no valid UdpHop port ranges found in: %s", ports)
+				return nil, fmt.Errorf("no valid UdpHop port ranges found in: %s", portStr)
 			}
-			
-			portList := conf.PortList{
-				Range: portRanges,
-			}
-			
-			hop.Ports = portList
+
+			hop.Ports = conf.PortList{Range: portRanges}
 		}
 		if intervalData, intervalOK := udpHopData.CheckGet("interval"); intervalOK {
 			from, errFrom := intervalData.Get("from").Int()

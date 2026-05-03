@@ -384,7 +384,7 @@ Nodes:
       "brutalUp": "100mbps",
       "brutalDown": "100mbps",
       "udpHop": {
-        "ports": "443,8443",
+        "ports": ["443,8443"],
         "interval": { "from": 10, "to": 30 }
       },
       "initStreamReceiveWindow": 8388608,
@@ -409,7 +409,7 @@ Nodes:
 | `bbrProfile` | string | Congestion control algorithm, e.g. `"conservative"`, `"standard"`, `"aggressive"` |
 | `brutalUp` | string | Upload bandwidth for brutal congestion, e.g. `"100mbps"`, `"1gbps"` |
 | `brutalDown` | string | Download bandwidth for brutal congestion |
-| `udpHop.ports` | string | Port list for UDP hopping |
+| `udpHop.ports` | string/arraay | Port list for UDP hopping |
 | `udpHop.interval` | object | Hop interval range in seconds `{ "from": N, "to": N }` |
 | `initStreamReceiveWindow` | uint64 | Initial stream receive window size (bytes) |
 | `maxStreamReceiveWindow` | uint64 | Max stream receive window size (bytes) |
