@@ -34,7 +34,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		inboundDetourConfig.ListenOn = &conf.Address{Address: ipAddress}
 	}
 	
-	portRanges, err := ParsePortString(nodeInfo.ListeningPort)
+	portRanges, err := parsePortString(nodeInfo.ListeningPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse listening port: %w", err)
 	}

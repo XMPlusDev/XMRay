@@ -107,7 +107,7 @@ func RouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config, error) {
 		var portRanges []conf.PortRange
 		var err error
 		if nodeInfo.BlockingRules.Port != "" && nodeInfo.BlockingRules.Port != "0" {
-			portRanges, err = ParsePortString(nodeInfo.BlockingRules.Port)
+			portRanges, err = parsePortString(nodeInfo.BlockingRules.Port)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse port string: %w", err)
 			}

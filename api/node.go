@@ -9,7 +9,6 @@ import (
 	"strconv"
     
 	"github.com/bitly/go-simplejson"
-	"github.com/xmplusdev/xmray/node"
 	"github.com/xtls/xray-core/infra/conf"
 )
 
@@ -892,8 +891,7 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 				return nil, fmt.Errorf("udpHop.ports: %w", err)
 			}
 			
-			portRanges, err := node.ParsePortString(ports)
-			if err != nil {
+			if portRanges, err := parsePortString(ports); err != nil {
 				return nil,fmt.Errorf("failed to parse UdpHop ports: %w", err)
 			}
 			
@@ -943,4 +941,42 @@ func parseSingleMask(mask *simplejson.Json) (*MaskEntry, error) {
 	entry.Settings = &rm
 
 	return entry, nil
+}
+
+func parsePortString(portStr string) ([]conf.PortRange, error) {
+	if portStr == "" {
+		return nil, fmt.Errorf("port string is empty")
+	}
+
+	var portRanges []conf.PortRange
+
+	for _, segment := range strings.Split(portStr, ",") {
+		segment = strings.TrimSpace(segment)
+		if segment == "" {
+			continue
+		}
+		if strings.Contains(segment, "-") {
+			parts := strings.SplitN(segment, "-", 2)
+			from, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid port number in range: %s", parts[0])
+			}
+			to, err := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid port number in range: %s", parts[1])
+			}
+			if from > to {
+				return nil, fmt.Errorf("starting port 【%d】 cannot be greater than ending port 【%d】", from, to)
+			}
+			portRanges = append(portRanges, conf.PortRange{From: uint32(from), To: uint32(to)})
+		} else {
+			port, err := strconv.ParseUint(segment, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid port number: %s", segment)
+			}
+			portRanges = append(portRanges, conf.PortRange{From: uint32(port), To: uint32(port)})
+		}
+	}
+
+	return portRanges, nil
 }
