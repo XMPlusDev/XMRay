@@ -161,7 +161,7 @@ func (c *Controller) Start() error {
 		c.LogPrefix,
 		"server",
 		pollInterval,
-		c.nodeInfoMonitor,
+		c.apiMonitor,
 	))
 
 	c.taskManager.Add(task.NewWithDelay(
