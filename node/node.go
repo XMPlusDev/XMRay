@@ -308,21 +308,8 @@ func buildQuicParams(q *api.QuicParamsSettings) *conf.QuicParamsConfig {
 	}
 
 	if q.UdpHop != nil {
-		portRanges, err := parsePortString(q.UdpHop.Ports)
-		if err != nil {
-			return fmt.Errorf("failed to parse UdpHop ports: %w", err)
-		}
-		
-		if len(portRanges) == 0 {
-			return fmt.Errorf("no valid UdpHop port ranges found in: %s", q.UdpHop.Ports)
-		}
-		
-		portList := conf.PortList{
-			Range: portRanges,
-		}
-		
 		hop := conf.UdpHop{
-			PortList: portList,
+			PortList: q.UdpHop.Ports,
 		}
 		if q.UdpHop.Interval != nil {
 			hop.Interval = conf.Int32Range{

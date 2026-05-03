@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/xtls/xray-core/infra/conf"
 )
 
 const (
@@ -140,7 +141,7 @@ type Int32RangeSettings struct {
 }
 
 type UdpHopSettings struct {
-	Ports    string
+	Ports    conf.PortList
 	Interval *Int32RangeSettings
 }
 

@@ -9,6 +9,8 @@ import (
 	"strconv"
     
 	"github.com/bitly/go-simplejson"
+	"github.com/xmplusdev/xmray/node"
+	"github.com/xtls/xray-core/infra/conf"
 )
 
 func (c *Client) GetNodeInfo() (*NodeInfo, error) {
@@ -889,7 +891,21 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 			if err != nil {
 				return nil, fmt.Errorf("udpHop.ports: %w", err)
 			}
-			hop.Ports = ports
+			
+			portRanges, err := node.ParsePortString(ports)
+			if err != nil {
+				return nil,fmt.Errorf("failed to parse UdpHop ports: %w", err)
+			}
+			
+			if len(portRanges) == 0 {
+				return nil, fmt.Errorf("no valid UdpHop port ranges found in: %s", ports)
+			}
+			
+			portList := conf.PortList{
+				Range: portRanges,
+			}
+			
+			hop.Ports = portList
 		}
 		if intervalData, intervalOK := udpHopData.CheckGet("interval"); intervalOK {
 			from, errFrom := intervalData.Get("from").Int()
