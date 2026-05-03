@@ -19,7 +19,7 @@ import (
 
 type TriggerInterface interface {
 	TriggerNodeSync()
-	TriggerUserSync()
+	TriggerSubscriptionSync()
 	GetNodeID() int
 }
 
@@ -70,7 +70,7 @@ func (c *Controller) TriggerNodeSync() {
 	}
 }
 
-func (c *Controller) TriggerUserSync() {
+func (c *Controller) TriggerSubscriptionSync() {
 	select {
 	case c.subscriptionSyncTrigger <- struct{}{}:
 	default: 
@@ -229,13 +229,13 @@ func (c *Controller) webhookTriggerLoop(fallbackInterval time.Duration) {
 
 		case <-c.subscriptionSyncTrigger:
 			if time.Since(lastSync) < debounceDuration {
-				log.Printf("%s Webhook user trigger debounced", c.LogPrefix)
+				log.Printf("%s Webhook subscription trigger debounced", c.LogPrefix)
 				c.drainChannel(c.subscriptionSyncTrigger)
 				continue
 			}
-			log.Printf("%s Webhook user trigger: syncing now", c.LogPrefix)
+			log.Printf("%s Webhook subscription trigger: syncing now", c.LogPrefix)
 			if err := c.apiMonitor(); err != nil {
-				log.Printf("%s Webhook user sync error: %v", c.LogPrefix, err)
+				log.Printf("%s Webhook subscription sync error: %v", c.LogPrefix, err)
 			}
 			lastSync = time.Now()
 			c.drainChannel(c.subscriptionSyncTrigger)

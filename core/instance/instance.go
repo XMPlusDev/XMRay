@@ -296,8 +296,8 @@ func (i *Instance) webhookHandler(cfg *WebhookConfig) http.HandlerFunc {
 		switch event.Event {
 		case "node_updated":
 			ctrl.TriggerNodeSync()
-		case "users_updated":
-			ctrl.TriggerUserSync()
+		case "subscriptions_updated":
+			ctrl.TriggerSubscriptionSync()
 		default:
 			log.Printf("[Webhook] Unknown event type %q for NodeID %d", event.Event, event.NodeID)
 		}
