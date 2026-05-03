@@ -140,16 +140,16 @@ type Int32RangeSettings struct {
 }
 
 type UdpHopSettings struct {
-	Ports    json.RawMessage
+	Ports    string
 	Interval *Int32RangeSettings
 }
 
 type QuicParamsSettings struct {
 	Congestion                  string
 	Debug                       bool
-	BbrProfile                  string  // conservative, standard, aggressive
-	BrutalUp                    string // bandwidth string e.g. "100mbps"
-	BrutalDown                  string // bandwidth string e.g. "100mbps"
+	BbrProfile                  string  
+	BrutalUp                    string 
+	BrutalDown                  string 
 	UdpHop                      *UdpHopSettings
 	InitStreamReceiveWindow     uint64
 	MaxStreamReceiveWindow      uint64

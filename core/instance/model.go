@@ -12,11 +12,18 @@ type Config struct {
 	RouteConfigPath    string            `mapstructure:"RouteConfigPath"`
 	ConnectionConfig   *ConnectionConfig `mapstructure:"ConnectionConfig"`
 	NodesConfig        []*NodesConfig    `mapstructure:"Nodes"`
+	WebhookConfig      *WebhookConfig    `mapstructure:"WebhookConfig"`
 }
 
 type NodesConfig struct {
 	ApiConfig        *api.Config    `mapstructure:"ApiConfig"`
 	ControllerConfig *node.Config   `mapstructure:"ControllerConfig"`
+}
+
+type WebhookConfig struct {
+	Enable 				 bool 	`mapstructure:"Enable"`
+	ListenAddr 			 string `mapstructure:"ListenAddr"`
+	Secret 				 string `mapstructure:"Secret"`
 }
 
 type LogConfig struct {

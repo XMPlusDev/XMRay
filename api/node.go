@@ -191,13 +191,11 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 		nodeInfo.XhttpSettings.XPaddingBytes = "100-100"
 		nodeInfo.XhttpSettings.ScStreamUpServerSecs = "20-80"
 
-		if extraSettings, isOK := transportSettings.CheckGet("extra"); isOK {
-			nodeInfo.XhttpSettings.NoSSEHeader = extraSettings.Get("noSSEHeader").MustBool()
-			nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(extraSettings.Get("scMaxEachPostBytes").MustInt())
-			nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(extraSettings.Get("scMaxBufferedPosts").MustInt())
-			nodeInfo.XhttpSettings.ScStreamUpServerSecs = extraSettings.Get("scStreamUpServerSecs").MustString()
-			nodeInfo.XhttpSettings.XPaddingBytes = extraSettings.Get("xPaddingBytes").MustString()
-		}
+		nodeInfo.XhttpSettings.NoSSEHeader = transportSettings.Get("noSSEHeader").MustBool()
+		nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(transportSettings.Get("scMaxEachPostBytes").MustInt())
+		nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(transportSettings.Get("scMaxBufferedPosts").MustInt())
+		nodeInfo.XhttpSettings.ScStreamUpServerSecs = transportSettings.Get("scStreamUpServerSecs").MustString()
+		nodeInfo.XhttpSettings.XPaddingBytes = transportSettings.Get("xPaddingBytes").MustString()
 	}
 	
 	//raw
@@ -850,7 +848,7 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 	if v, err := qp.Get("debug").Bool(); err == nil {
 		q.Debug = v
 	}
-	if v, err := qp.Get("bbrProfile ").String(); err == nil {
+	if v, err := qp.Get("bbrProfile").String(); err == nil {
 		q.BbrProfile = v
 	}
 	if v, err := qp.Get("brutalUp").String(); err == nil {
@@ -887,11 +885,11 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 	if udpHopData, isOK := qp.CheckGet("udpHop"); isOK {
 		hop := &UdpHopSettings{}
 		if portsData, portsOK := udpHopData.CheckGet("ports"); portsOK {
-			raw, err := portsData.MarshalJSON()
+			ports, err := portsData.String()
 			if err != nil {
 				return nil, fmt.Errorf("udpHop.ports: %w", err)
 			}
-			hop.Ports = json.RawMessage(raw)
+			hop.Ports = ports
 		}
 		if intervalData, intervalOK := udpHopData.CheckGet("interval"); intervalOK {
 			from, errFrom := intervalData.Get("from").Int()

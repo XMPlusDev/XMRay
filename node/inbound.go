@@ -175,87 +175,18 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			}
 			streamSetting.HTTPUPGRADESettings = httpupgradeSettings	
 		case "xhttp", "splithttp":
-			var ScStreamUpA, ScStreamUpB int32 = 20, 80
-			
 			if nodeInfo.XhttpSettings == nil {
 				return nil, fmt.Errorf("XhttpSettings is required for xhttp transport")
 			}
 			
-			if strings.Contains(nodeInfo.XhttpSettings.ScStreamUpServerSecs, "-") {
-				parts := strings.Split(nodeInfo.XhttpSettings.ScStreamUpServerSecs, "-")
-				if len(parts) == 2 {
-					parsedStream1, err := strconv.ParseInt(parts[0], 10, 32)
-					if err != nil {
-						return nil, err
-					}
-					ScStreamUpA = int32(parsedStream1)
-					
-					parsedStream2, err := strconv.ParseInt(parts[1], 10, 32)
-					if err != nil {
-						return nil, err
-					}
-					ScStreamUpB = int32(parsedStream2)
-					
-				}else{
-					return nil, fmt.Errorf("invalid range format: %s", nodeInfo.XhttpSettings.ScStreamUpServerSecs)
-				}
-			} else {
-				parsedStream, err := strconv.ParseInt(nodeInfo.XhttpSettings.ScStreamUpServerSecs, 10, 32)
-				if err != nil {
-					return nil, err
-				}
-				
-				ScStreamUpA = int32(parsedStream)
-				ScStreamUpB = int32(parsedStream)
-			}
-			
-			scStreamUpServerSecs := conf.Int32Range{
-				From: ScStreamUpA, 
-				To: ScStreamUpB,
-			}
-			
-			var XPaddingA, XPaddingB int32 = 100, 100
-			if strings.Contains(nodeInfo.XhttpSettings.XPaddingBytes, "-") {
-				parts := strings.Split(nodeInfo.XhttpSettings.XPaddingBytes, "-")
-				if len(parts) == 2 {
-					parsedXPadding1, err := strconv.ParseInt(parts[0], 10, 32)
-					if err != nil {
-						return nil, err
-					}
-					XPaddingA = int32(parsedXPadding1)
-					
-					parsedXPadding2, err := strconv.ParseInt(parts[1], 10, 32)
-					if err != nil {
-						return nil, err
-					}
-					XPaddingB = int32(parsedXPadding2)
-					
-				}else{
-					return nil, fmt.Errorf("invalid range format: %s", nodeInfo.XhttpSettings.XPaddingBytes)
-				}
-			} else {
-				parsedXPadding, err := strconv.ParseInt(nodeInfo.XhttpSettings.XPaddingBytes, 10, 32)
-				if err != nil {
-					return nil, err
-				}
-				
-				XPaddingA = int32(parsedXPadding)
-				XPaddingB = int32(parsedXPadding)
-			}
-			
-			xPaddingBytes := conf.Int32Range{
-				From: XPaddingA, 
-				To: XPaddingB,
-			}
 			xhttpSettings := &conf.SplitHTTPConfig{
 				Host: nodeInfo.XhttpSettings.Host,
 				Path: nodeInfo.XhttpSettings.Path,
 				Mode: nodeInfo.XhttpSettings.Mode,
 				NoSSEHeader: nodeInfo.XhttpSettings.NoSSEHeader,
 				ScMaxBufferedPosts: nodeInfo.XhttpSettings.ScMaxBufferedPosts,
-				ScStreamUpServerSecs: scStreamUpServerSecs,
-				XPaddingBytes: xPaddingBytes,
 			}
+
 			if(nodeInfo.XhttpSettings.Mode == "packet-up"){
 				scMaxEachPostBytes := conf.Int32Range{
 					From: nodeInfo.XhttpSettings.ScMaxEachPostBytes, 
@@ -263,6 +194,19 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				}
 				xhttpSettings.ScMaxEachPostBytes = scMaxEachPostBytes
 			}
+			
+			scStreamUpServerSecs, err := parseInt32Range(nodeInfo.XhttpSettings.ScStreamUpServerSecs, 20, 80)
+			if err != nil {
+				return nil, fmt.Errorf("ScStreamUpServerSecs: %w", err)
+			}
+			xhttpSettings.ScStreamUpServerSecs = scStreamUpServerSecs
+
+			xPaddingBytes, err := parseInt32Range(nodeInfo.XhttpSettings.XPaddingBytes, 100, 100)
+			if err != nil {
+				return nil, fmt.Errorf("XPaddingBytes: %w", err)
+			}
+			xhttpSettings.XPaddingBytes = xPaddingBytes
+			
 			streamSetting.XHTTPSettings = xhttpSettings		
 		case "grpc":
 			grpcSettings := &conf.GRPCConfig{}
@@ -502,4 +446,32 @@ func buildTrojanFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.TrojanInbo
 		}
 	}
 	return trojanFallBacks, nil
+}
+
+func parseInt32Range(s string, defaultA, defaultB int32) (conf.Int32Range, error) {
+	if s == "" {
+		return conf.Int32Range{From: defaultA, To: defaultB}, nil
+	}
+
+	if strings.Contains(s, "-") {
+		parts := strings.Split(s, "-")
+		if len(parts) != 2 {
+			return conf.Int32Range{}, fmt.Errorf("invalid range format: %s", s)
+		}
+		a, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 32)
+		if err != nil {
+			return conf.Int32Range{}, fmt.Errorf("invalid range start %q: %w", parts[0], err)
+		}
+		b, err := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 32)
+		if err != nil {
+			return conf.Int32Range{}, fmt.Errorf("invalid range end %q: %w", parts[1], err)
+		}
+		return conf.Int32Range{From: int32(a), To: int32(b)}, nil
+	}
+
+	v, err := strconv.ParseInt(strings.TrimSpace(s), 10, 32)
+	if err != nil {
+		return conf.Int32Range{}, fmt.Errorf("invalid value %q: %w", s, err)
+	}
+	return conf.Int32Range{From: int32(v), To: int32(v)}, nil
 }
