@@ -42,7 +42,7 @@ type Instance struct {
 
 	webhookServer *http.Server
 	webhookCancel context.CancelFunc
-	controllerMap map[int]controller.TriggerInterface // nodeID → controller
+	controllerMap map[int]controller.TriggerInterface 
 }
 
 func New(instanceConfig *Config) *Instance {
@@ -196,11 +196,7 @@ func (i *Instance) Start() error {
 				return fmt.Errorf("read Controller Config Failed: %s", err)
 			}
 		}
-
-		if i.instanceConfig.WebhookConfig != nil && controllerConfig.WebhookConfig == nil {
-			controllerConfig.WebhookConfig = i.instanceConfig.WebhookConfig
-		}
-
+		
 		controllerService := controller.New(server, client, controllerConfig, i.Dispatcher)
 		i.Service = append(i.Service, controllerService)
 	}
