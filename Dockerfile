@@ -4,7 +4,6 @@ WORKDIR /app
 COPY . .
 ENV CGO_ENABLED=0
 RUN go mod tidy
-RUN go mod download
 RUN go build -v -o XMRay -trimpath -ldflags "-s -w -buildid=" ./main
 
 FROM alpine
