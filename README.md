@@ -28,14 +28,17 @@ ConnectionConfig:
   UplinkOnly: 0 
   DownlinkOnly: 0 
   BufferSize: 64
-WebhookConfig:
-  Enable: false                                  # Enable turns the webhook server on.
-  ListenAddr: "0.0.0.0:18888"                    # ListenAddr is the address the HTTP server binds to. "0.0.0.0:18888"
-  Secret: "sha256 hash of api key"               #Secret is the value controllers expect in the X-XMRay-Auth request
+ReverbConfig:
+  - Enable: false
+    Host: "api.xyz.com:443" # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
+    AppKey:      # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
+    AppSecret:   # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
+    Channel: xmplus # Do not change
+    UseTLS: true  # Set to true if tls enabled for api
 Nodes:
   -
     ApiConfig:
-      ApiHost: "https://www.xyz.com"
+      ApiHost: "https://api.xyz.com"
       ApiKey: "123"
       NodeID: 1
       Timeout: 30 
@@ -43,9 +46,9 @@ Nodes:
       EnableDNS: true # Use custom DNS config, Please ensure that you set the dns.json well
       DNSStrategy: AsIs # AsIs, UseIP, UseIPv4, UseIPv6
       CertConfig:
-        Email: author@cert.xyz                    # Required when Cert Mode is not none
-        CertFile: /etc/XMRay/node1.cert.xyz.crt  # Required when Cert Mode is file
-        KeyFile: /etc/XMRay/node1..key   # Required when Cert Mode is file
+        Email: author@cert.xyz                    	# Required when Cert Mode is not none
+        CertFile: /etc/XMRay/node1.crt  			# Required when Cert Mode is file
+        KeyFile: /etc/XMRay/node1.key   			# Required when Cert Mode is file
         Provider: cloudflare                        # Required when Cert Mode is dns
         CertEnv:                                    # Required when Cert Mode is dns
           CLOUDFLARE_EMAIL:                         # Required when Cert Mode is dns

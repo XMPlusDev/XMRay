@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"sync"
-	"time"
 
 	"dario.cat/mergo"
 	"github.com/r3labs/diff/v2"
@@ -26,12 +24,6 @@ import (
 	_ "github.com/xmplusdev/xmray/main/distro/all"
 )
 
-type WebhookEvent struct {
-	Event  string          `json:"event"`   // "node_updated" | "users_updated"
-	NodeID int             `json:"node_id"` // routes to the correct controller
-	Data   json.RawMessage `json:"data"`    // reserved for future use
-}
-
 type Instance struct {
 	statusLock     sync.Mutex
 	instanceConfig *Config
@@ -40,9 +32,8 @@ type Instance struct {
 	Service        []controller.ControllerInterface
 	Running        bool
 
-	webhookServer *http.Server
-	webhookCancel context.CancelFunc
-	controllerMap map[int]controller.TriggerInterface 
+	reverbCancels []context.CancelFunc
+	controllerMap map[int]controller.TriggerInterface
 }
 
 func New(instanceConfig *Config) *Instance {
@@ -156,7 +147,6 @@ func (i *Instance) Start() error {
 		return fmt.Errorf("failed to register limiting dispatcher: %s", err)
 	}
 
-	// Close and clear any previously running services (restart path).
 	for _, s := range i.Service {
 		if err := s.Close(); err != nil {
 			return fmt.Errorf("warning: failed to close service during restart: %s", err)
@@ -170,12 +160,10 @@ func (i *Instance) Start() error {
 	i.Server = nil
 	i.Dispatcher = nil
 
-	// Stop previous webhook server if restarting.
-	if i.webhookCancel != nil {
-		i.webhookCancel()
-		i.webhookCancel = nil
-		i.webhookServer = nil
+	for _, cancel := range i.reverbCancels {
+		cancel()
 	}
+	i.reverbCancels = nil
 	i.controllerMap = make(map[int]controller.TriggerInterface)
 
 	if err := server.Start(); err != nil {
@@ -186,7 +174,6 @@ func (i *Instance) Start() error {
 
 	log.Println("XMRay started successfully")
 
-	// Build and start one controller per node.
 	for _, nodeConfig := range i.instanceConfig.NodesConfig {
 		client := api.New(nodeConfig.ApiConfig)
 
@@ -196,7 +183,7 @@ func (i *Instance) Start() error {
 				return fmt.Errorf("read Controller Config Failed: %s", err)
 			}
 		}
-		
+
 		controllerService := controller.New(server, client, controllerConfig, i.Dispatcher)
 		i.Service = append(i.Service, controllerService)
 	}
@@ -213,104 +200,28 @@ func (i *Instance) Start() error {
 			}
 		}
 	}
-	
-	if i.instanceConfig.WebhookConfig != nil && i.instanceConfig.WebhookConfig.Enable {
-		i.startWebhookServer(i.instanceConfig.WebhookConfig)
+
+	for _, cfg := range i.instanceConfig.ReverbConfig {
+		if cfg == nil || !cfg.Enable {
+			continue
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		i.reverbCancels = append(i.reverbCancels, cancel)
+		go i.reverbListener(ctx, cfg)
 	}
 
 	i.Running = true
 	return nil
 }
 
-func (i *Instance) startWebhookServer(cfg *WebhookConfig) {
-	ctx, cancel := context.WithCancel(context.Background())
-	i.webhookCancel = cancel
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/webhook", i.webhookHandler(cfg))
-
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	i.webhookServer = &http.Server{
-		Addr:         cfg.ListenAddr,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-
-	go func() {
-		log.Printf("[Webhook] Server listening on %s → %d node(s) registered",
-			cfg.ListenAddr, len(i.controllerMap))
-		if err := i.webhookServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("[Webhook] Server error: %v", err)
-		}
-	}()
-
-	go func() {
-		<-ctx.Done()
-		shutCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer shutCancel()
-		if err := i.webhookServer.Shutdown(shutCtx); err != nil {
-			log.Printf("[Webhook] Shutdown error: %v", err)
-		}
-		log.Println("[Webhook] Server stopped")
-	}()
-}
-
-func (i *Instance) webhookHandler(cfg *WebhookConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Shared-secret authentication.
-		if cfg.Secret != "" && r.Header.Get("X-XMRay-Auth") != cfg.Secret {
-			log.Printf("[Webhook] Unauthorized request from %s", r.RemoteAddr)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// Parse event — payload is intentionally kept small (signal only).
-		var event WebhookEvent
-		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		switch event.Event {
-		case "node_updated":
-			ctrl, ok := i.controllerMap[event.NodeID]
-			if !ok {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			ctrl.TriggerNodeSync()
-
-		case "subscriptions_updated":
-			log.Printf("[Webhook] Event %q triggered.", event.Event)
-			for _, ctrl := range i.controllerMap {
-				ctrl.TriggerSubscriptionSync()
-			}
-
-		default:
-			log.Printf("[Webhook] Unknown event type %q", event.Event)
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
 func (i *Instance) Close() error {
 	i.statusLock.Lock()
 	defer i.statusLock.Unlock()
 
-	if i.webhookCancel != nil {
-		i.webhookCancel()
-		i.webhookCancel = nil
+	for _, cancel := range i.reverbCancels {
+		cancel()
 	}
+	i.reverbCancels = nil
 
 	for _, s := range i.Service {
 		if err := s.Close(); err != nil {

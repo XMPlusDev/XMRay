@@ -13,6 +13,7 @@ type Config struct {
 	ConnectionConfig   *ConnectionConfig `mapstructure:"ConnectionConfig"`
 	NodesConfig        []*NodesConfig    `mapstructure:"Nodes"`
 	WebhookConfig      *WebhookConfig    `mapstructure:"WebhookConfig"`
+	ReverbConfig       []*ReverbConfig   `mapstructure:"ReverbConfig"`
 }
 
 type NodesConfig struct {
@@ -32,6 +33,15 @@ type LogConfig struct {
 	ErrorPath  string    `mapstructure:"ErrorPath"`
 	DNSLog     bool      `mapstructure:"DNSLog"`
 	MaskAddress string   `mapstructure:"MaskAddress"`
+}
+
+type ReverbConfig struct {
+    Enable    bool   	`mapstructure:"Enable"`
+    Host      string 	`mapstructure:"Host"`      
+    AppKey    string 	`mapstructure:"AppKey"`   
+	AppSecret string 	`mapstructure:"AppSecret"` 
+    Channel   string 	`mapstructure:"Channel"`   
+    UseTLS    bool   	`mapstructure:"UseTLS"` 
 }
 
 type ConnectionConfig struct {
