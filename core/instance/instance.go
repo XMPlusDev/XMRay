@@ -241,7 +241,7 @@ func (i *Instance) startWebhookServer(cfg *WebhookConfig) {
 	}
 
 	go func() {
-		log.Printf("[Webhook] Server listening on %s (%d node(s) registered)",
+		log.Printf("[Webhook] Server listening on %s → %d node(s) registered",
 			cfg.ListenAddr, len(i.controllerMap))
 		if err := i.webhookServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("[Webhook] Server error: %v", err)
@@ -280,25 +280,23 @@ func (i *Instance) webhookHandler(cfg *WebhookConfig) http.HandlerFunc {
 			return
 		}
 
-		// Route to the controller that owns this node.
-		ctrl, ok := i.controllerMap[event.NodeID]
-		if !ok {
-			log.Printf("[Webhook] Received event %q for unknown NodeID %d — ignoring",
-				event.Event, event.NodeID)
-			// Return 200 so the panel does not endlessly retry.
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		log.Printf("[Webhook] Event %q → NodeID %d", event.Event, event.NodeID)
-
 		switch event.Event {
 		case "node_updated":
+			ctrl, ok := i.controllerMap[event.NodeID]
+			if !ok {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			ctrl.TriggerNodeSync()
+
 		case "subscriptions_updated":
-			ctrl.TriggerSubscriptionSync()
+			log.Printf("[Webhook] Event %q triggered.", event.Event)
+			for _, ctrl := range i.controllerMap {
+				ctrl.TriggerSubscriptionSync()
+			}
+
 		default:
-			log.Printf("[Webhook] Unknown event type %q for NodeID %d", event.Event, event.NodeID)
+			log.Printf("[Webhook] Unknown event type %q", event.Event)
 		}
 
 		w.WriteHeader(http.StatusOK)
