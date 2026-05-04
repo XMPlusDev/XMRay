@@ -28,6 +28,10 @@ ConnectionConfig:
   UplinkOnly: 0 
   DownlinkOnly: 0 
   BufferSize: 64
+WebhookConfig:
+  Enable: false                                  # Enable turns the webhook server on.
+  ListenAddr: "0.0.0.0:18888"                    # ListenAddr is the address the HTTP server binds to. "0.0.0.0:18888"
+  Secret: "sha256 hash of api key"               #Secret is the value controllers expect in the X-XMRay-Auth request
 Nodes:
   -
     ApiConfig:

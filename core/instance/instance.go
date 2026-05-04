@@ -222,7 +222,6 @@ func (i *Instance) Start() error {
 	return nil
 }
 
-//	{"event":"users_updated","node_id":3}
 func (i *Instance) startWebhookServer(cfg *WebhookConfig) {
 	ctx, cancel := context.WithCancel(context.Background())
 	i.webhookCancel = cancel
