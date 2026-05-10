@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"log"
 
@@ -16,14 +17,16 @@ import (
 	redisStore "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/time/rate"
-	
+
 	"github.com/xmplusdev/xmray/api"
 )
 
 type SubscriptionInfo struct {
-	Id          int
-	SpeedLimit  uint64
-	IPLimit     int
+	Id           int
+	SpeedLimit   uint64
+	IPLimit      int
+	TrafficLimit int64 
+	UsedTraffic  int64 
 }
 
 type IPData struct {
@@ -33,11 +36,13 @@ type IPData struct {
 }
 
 type InboundInfo struct {
-	Tag            		   string
-	NodeSpeedLimit 		   uint64
-	SubscriptionInfo   	   *sync.Map // Key: Email value: SubscriptionInfo
-	BucketHub      		   *sync.Map // key: Email, value: *rate.Limiter
-	GlobalIPLimit  struct {
+	Tag            string
+	NodeSpeedLimit uint64
+	SubscriptionInfo *sync.Map // key: email → SubscriptionInfo
+	BucketHub        *sync.Map // key: email → *rate.Limiter
+	TrafficUp   *sync.Map // key: email → *atomic.Int64
+	TrafficDown *sync.Map // key: email → *atomic.Int64
+	GlobalIPLimit struct {
 		config         *RedisConfig
 		globalOnlineIP *marshaler.Marshaler
 		redisClient    *redis.Client
@@ -45,7 +50,7 @@ type InboundInfo struct {
 }
 
 type Limiter struct {
-	InboundInfo *sync.Map // Key: Tag, Value: *InboundInfo
+	InboundInfo *sync.Map // key: tag → *InboundInfo
 }
 
 func New() *Limiter {
@@ -56,9 +61,11 @@ func New() *Limiter {
 
 func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, serviceList *[]api.SubscriptionInfo, redisConfig *RedisConfig) error {
 	inboundInfo := &InboundInfo{
-		Tag:            		tag,
-		NodeSpeedLimit: 		nodeSpeedLimit,
-		BucketHub:      		new(sync.Map),
+		Tag:            tag,
+		NodeSpeedLimit: nodeSpeedLimit,
+		BucketHub:      new(sync.Map),
+		TrafficUp:      new(sync.Map), 
+		TrafficDown:    new(sync.Map),
 	}
 
 	if redisConfig != nil && redisConfig.Enable {
@@ -74,40 +81,44 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 		rs := redisStore.NewRedis(rc, store.WithExpiration(time.Duration(expiry)*time.Second))
 		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cache.New[any](rs))
 	}
-	
+
 	serviceMap := new(sync.Map)
 	for _, u := range *serviceList {
 		serviceMap.Store(fmt.Sprintf("%s|%s|%d", tag, u.Email, u.Id), SubscriptionInfo{
-			Id:          u.Id,
-			SpeedLimit:  u.SpeedLimit,
-			IPLimit:     u.IPLimit,
+			Id:           u.Id,
+			SpeedLimit:   u.SpeedLimit,
+			IPLimit:      u.IPLimit,
+			TrafficLimit: u.TrafficLimit, 
+			UsedTraffic:  u.UsedTraffic, 
 		})
 	}
 	inboundInfo.SubscriptionInfo = serviceMap
-	l.InboundInfo.Store(tag, inboundInfo) // Replace the old inbound info
+	l.InboundInfo.Store(tag, inboundInfo)
 	return nil
 }
 
 func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.SubscriptionInfo) error {
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		inboundInfo := value.(*InboundInfo)
-		// Update User info
 		for _, u := range *updatedServiceList {
-			inboundInfo.SubscriptionInfo.Store(fmt.Sprintf("%s|%s|%d", tag, u.Email, u.Id), SubscriptionInfo{
-				Id:          u.Id,
-				SpeedLimit:  u.SpeedLimit,
-				IPLimit: 	 u.IPLimit,
+			key := fmt.Sprintf("%s|%s|%d", tag, u.Email, u.Id)
+			inboundInfo.SubscriptionInfo.Store(key, SubscriptionInfo{
+				Id:           u.Id,
+				SpeedLimit:   u.SpeedLimit,
+				IPLimit:      u.IPLimit,
+				TrafficLimit: u.TrafficLimit, 
+				UsedTraffic:  u.UsedTraffic, 
 			})
-			// Update old limiter bucket
+			
 			limit := determineRate(inboundInfo.NodeSpeedLimit, u.SpeedLimit)
 			if limit > 0 {
-				if bucket, ok := inboundInfo.BucketHub.Load(fmt.Sprintf("%s|%s|%d", tag, u.Email, u.Id)); ok {
-					limiter := bucket.(*rate.Limiter)
-					limiter.SetLimit(rate.Limit(limit))
-					limiter.SetBurst(int(limit))
+				if bucket, ok := inboundInfo.BucketHub.Load(key); ok {
+					lim := bucket.(*rate.Limiter)
+					lim.SetLimit(rate.Limit(limit))
+					lim.SetBurst(int(limit))
 				}
 			} else {
-				inboundInfo.BucketHub.Delete(fmt.Sprintf("%s|%s|%d", tag, u.Email, u.Id))
+				inboundInfo.BucketHub.Delete(key)
 			}
 		}
 	} else {
@@ -143,25 +154,22 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		inboundInfo := value.(*InboundInfo)
-		
+
 		if inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
 			defer cancel()
-			
+
 			inboundInfo.BucketHub.Range(func(key, value interface{}) bool {
 				email := key.(string)
-				
 				if v, ok := inboundInfo.SubscriptionInfo.Load(email); ok {
 					subscriptionInfo := v.(SubscriptionInfo)
 					uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
-					
 					v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 					if err != nil {
 						inboundInfo.BucketHub.Delete(email)
 					} else {
 						ipMap := v.(*map[string][]IPData)
 						emailFound := false
-						
 						for _, dataList := range *ipMap {
 							for _, data := range dataList {
 								if data.Email == email {
@@ -173,8 +181,6 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 								break
 							}
 						}
-						
-						// If email not found in any IPData, delete bucket
 						if !emailFound {
 							inboundInfo.BucketHub.Delete(email)
 						}
@@ -182,18 +188,15 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 				}
 				return true
 			})
-			
+
 			inboundInfo.SubscriptionInfo.Range(func(key, value interface{}) bool {
 				email := key.(string)
 				subscriptionInfo := value.(SubscriptionInfo)
-				
 				uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(subscriptionInfo.IPLimit), 1)
-				
 				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
 				if err == nil {
 					ipMap := v.(*map[string][]IPData)
 					modified := false
-
 					for ip, dataList := range *ipMap {
 						remaining := dataList[:0]
 						for _, data := range dataList {
@@ -204,15 +207,12 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 								remaining = append(remaining, data)
 							}
 						}
-
 						(*ipMap)[ip] = remaining
 					}
-
 					if modified {
 						go pushIP(inboundInfo, uniqueKey, ipMap)
 					}
 				}
-				
 				return true
 			})
 		}
@@ -226,8 +226,10 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate.Limiter, isSpeedLimited bool, Reject bool) {
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		var (
-			SpeedLimit  uint64 = 0
+			SpeedLimit   uint64
 			ipLimit, uid int
+			trafficLimit int64
+			usedTraffic  int64
 		)
 
 		inboundInfo := value.(*InboundInfo)
@@ -238,104 +240,187 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate
 			uid = u.Id
 			SpeedLimit = u.SpeedLimit
 			ipLimit = u.IPLimit
+			trafficLimit = u.TrafficLimit
+			usedTraffic = u.UsedTraffic 
 		}
 
-		// Check IP limit based on whether GlobalIPLimit (Redis) is enabled
+		if trafficLimit > 0 {
+			upRaw, _ := inboundInfo.TrafficUp.LoadOrStore(email, new(atomic.Int64))
+			downRaw, _ := inboundInfo.TrafficDown.LoadOrStore(email, new(atomic.Int64))
+			liveDelta := upRaw.(*atomic.Int64).Load() + downRaw.(*atomic.Int64).Load()
+			if usedTraffic+liveDelta >= trafficLimit {
+				return nil, false, true 
+			}
+		}
+
 		if inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
-			// Use Redis for IP limit checking
 			if reject := checkLimit(inboundInfo, email, uid, ip, ipLimit, tag); reject {
 				return nil, false, true
 			}
 		}
-		
-		// Speed limit
+
 		limit := determineRate(nodeLimit, SpeedLimit)
 		if limit == 0 {
 			return nil, false, false
 		}
-
 		if v, ok := inboundInfo.BucketHub.Load(email); ok {
 			return v.(*rate.Limiter), true, false
 		}
-		limiter := rate.NewLimiter(rate.Limit(limit), int(limit))
-		if v, loaded := inboundInfo.BucketHub.LoadOrStore(email, limiter); loaded {
+		lim := rate.NewLimiter(rate.Limit(limit), int(limit))
+		if v, loaded := inboundInfo.BucketHub.LoadOrStore(email, lim); loaded {
 			return v.(*rate.Limiter), true, false
 		}
-		return limiter, true, false
-	} else {
-		newError("Get Limiter information failed").AtDebug()
-		return nil, false, false
+		return lim, true, false
 	}
+	newError("Get Limiter information failed").AtDebug()
+	return nil, false, false
 }
 
-// Global device limit
+func (l *Limiter) AddDelta(tag, email string, upload, download int64) (exceeded bool) {
+	value, ok := l.InboundInfo.Load(tag)
+	if !ok {
+		return false
+	}
+	inboundInfo := value.(*InboundInfo)
+
+	subRaw, ok := inboundInfo.SubscriptionInfo.Load(email)
+	if !ok {
+		return false
+	}
+	sub := subRaw.(SubscriptionInfo)
+	if sub.TrafficLimit == 0 {
+		if upload > 0 {
+			upRaw, _ := inboundInfo.TrafficUp.LoadOrStore(email, new(atomic.Int64))
+			upRaw.(*atomic.Int64).Add(upload)
+		}
+		if download > 0 {
+			downRaw, _ := inboundInfo.TrafficDown.LoadOrStore(email, new(atomic.Int64))
+			downRaw.(*atomic.Int64).Add(download)
+		}
+		return false
+	}
+
+	upRaw, _ := inboundInfo.TrafficUp.LoadOrStore(email, new(atomic.Int64))
+	downRaw, _ := inboundInfo.TrafficDown.LoadOrStore(email, new(atomic.Int64))
+	newUp := upRaw.(*atomic.Int64).Add(upload)
+	newDown := downRaw.(*atomic.Int64).Add(download)
+
+	return sub.UsedTraffic+newUp+newDown >= sub.TrafficLimit
+}
+
+func (l *Limiter) DrainDeltas(tag string) []api.SubscriptionTraffic {
+	value, ok := l.InboundInfo.Load(tag)
+	if !ok {
+		return nil
+	}
+	inboundInfo := value.(*InboundInfo)
+
+	var result []api.SubscriptionTraffic
+	inboundInfo.TrafficUp.Range(func(k, v interface{}) bool {
+		email := k.(string)
+		up := v.(*atomic.Int64).Swap(0)
+
+		var down int64
+		if downRaw, ok := inboundInfo.TrafficDown.Load(email); ok {
+			down = downRaw.(*atomic.Int64).Swap(0)
+		}
+		if up == 0 && down == 0 {
+			return true
+		}
+		subRaw, ok := inboundInfo.SubscriptionInfo.Load(email)
+		if !ok {
+			return true
+		}
+		sub := subRaw.(SubscriptionInfo)
+		result = append(result, api.SubscriptionTraffic{
+			Id:       sub.Id,
+			Upload:   up,
+			Download: down,
+		})
+		return true
+	})
+	return result
+}
+
+func (l *Limiter) CheckTrafficExceeded(tag string) []string {
+	value, ok := l.InboundInfo.Load(tag)
+	if !ok {
+		return nil
+	}
+	inboundInfo := value.(*InboundInfo)
+
+	var exceeded []string
+	inboundInfo.SubscriptionInfo.Range(func(k, v interface{}) bool {
+		email := k.(string)
+		sub := v.(SubscriptionInfo)
+		if sub.TrafficLimit == 0 {
+			return true
+		}
+		var up, down int64
+		if upRaw, ok := inboundInfo.TrafficUp.Load(email); ok {
+			up = upRaw.(*atomic.Int64).Load()
+		}
+		if downRaw, ok := inboundInfo.TrafficDown.Load(email); ok {
+			down = downRaw.(*atomic.Int64).Load()
+		}
+		if sub.UsedTraffic+up+down >= sub.TrafficLimit {
+			exceeded = append(exceeded, email)
+		}
+		return true
+	})
+	return exceeded
+}
+
 func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLimit int, tag string) bool {
-    ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
+	defer cancel()
 
-    // reformat email for unique key
-    uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(ipLimit), 1)
+	uniqueKey := strings.Replace(email, inboundInfo.Tag, strconv.Itoa(ipLimit), 1)
+	v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
+	if err != nil {
+		if _, ok := err.(*store.NotFound); ok {
+			go pushIP(inboundInfo, uniqueKey, &map[string][]IPData{ip: {{UID: uid, Tag: tag, Email: email}}})
+		} else {
+			newError("cache service").Base(err).AtError()
+		}
+		return false
+	}
 
-    v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
-    if err != nil {
-        if _, ok := err.(*store.NotFound); ok {
-            // If the subscription email is a new device (first connection)
-            go pushIP(inboundInfo, uniqueKey, &map[string][]IPData{ip: {{UID: uid, Tag: tag, Email: email}}})
-        } else {
-            newError("cache service").Base(err).AtError()
-        }
-        return false
-    }
-
-    ipMap := v.(*map[string][]IPData)
-	
-	// Check if this IP already exists in cache
+	ipMap := v.(*map[string][]IPData)
 	if dataList, ipExists := (*ipMap)[ip]; ipExists {
-		// IP exists - check if this UID/Tag combination exists
 		found := false
 		for i, data := range dataList {
 			if data.UID == uid && data.Tag == tag {
-				// Update existing entry
 				dataList[i] = IPData{UID: uid, Tag: tag, Email: email}
 				found = true
 				break
 			}
 		}
-		
-		// If UID or Tag is different, append new IPData
 		if !found {
 			dataList = append(dataList, IPData{UID: uid, Tag: tag, Email: email})
 		}
-		
 		(*ipMap)[ip] = dataList
 		go pushIP(inboundInfo, uniqueKey, ipMap)
 		return false
 	}
-    
-    // This is a NEW IP - check if we're at limit
-    if ipLimit > 0 && len(*ipMap) >= ipLimit {
-        // Already at limit, reject the NEW IP
-        return true
-    }
 
-    // Within limit, add the new IP with IPData as a slice
-    (*ipMap)[ip] = []IPData{{UID: uid, Tag: tag, Email: email}}
-    go pushIP(inboundInfo, uniqueKey, ipMap)
+	if ipLimit > 0 && len(*ipMap) >= ipLimit {
+		return true
+	}
 
-    return false
+	(*ipMap)[ip] = []IPData{{UID: uid, Tag: tag, Email: email}}
+	go pushIP(inboundInfo, uniqueKey, ipMap)
+	return false
 }
 
-// push the ip to cache
 func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string][]IPData) {
-    ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
-    defer cancel()
-
-    if err := inboundInfo.GlobalIPLimit.globalOnlineIP.Set(ctx, uniqueKey, ipMap); err != nil {
-        newError("Redis cache service").Base(err).AtError()
-    }
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
+	defer cancel()
+	if err := inboundInfo.GlobalIPLimit.globalOnlineIP.Set(ctx, uniqueKey, ipMap); err != nil {
+		newError("Redis cache service").Base(err).AtError()
+	}
 }
 
-// determineRate returns the minimum non-zero rate
 func determineRate(nodeLimit, subscriptionLimit uint64) (limit uint64) {
 	switch {
 	case nodeLimit == 0 && subscriptionLimit == 0:

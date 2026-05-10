@@ -18,7 +18,7 @@ ReverbConfig:
     Host: "api.xyz.com:443" # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
     AppKey:                 # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
     AppSecret:              # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
-    Channel: xmplus         # Do not change
+    Channel: "private-xmplus"         # Do not change
     UseTLS: true            # Set to true if tls enabled for api
 Nodes:
   -

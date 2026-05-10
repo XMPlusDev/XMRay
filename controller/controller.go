@@ -53,6 +53,7 @@ func New(server *core.Instance, api api.API, config *node.Config, dispatcher *di
 		server:          server,
 		config:          config,
 		client:          api,
+		dispatcher:      dispatcher,
 		taskManager:     task.NewManager(),
 		nodeManager:     node.NewManager(server, dispatcher),
 		subManager:      subscription.NewManager(server, api, dispatcher),
@@ -169,7 +170,7 @@ func (c *Controller) Start() error {
 		"subscriptions",
 		pollInterval,
 		func() error {
-			return c.subManager.SubscriptionMonitor(c.subscriptionList, c.Tag, c.LogPrefix)
+			return c.subManager.SubscriptionMonitor(c.Tag, c.LogPrefix)
 		},
 	))
 
@@ -366,6 +367,8 @@ func (c *Controller) apiMonitor() (err error) {
 			log.Print(err)
 			return nil
 		}
+		
+		c.checkAndLogExceeded()
 	} else if subscriptionChanged {
 		deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
 
@@ -387,6 +390,7 @@ func (c *Controller) apiMonitor() (err error) {
 				if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &added); err != nil {
 					log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
 				}
+				c.checkAndLogExceeded()
 			}
 		}
 
@@ -403,12 +407,20 @@ func (c *Controller) apiMonitor() (err error) {
 			if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &modified); err != nil {
 				log.Printf("%s Error updating limiter for modified subscriptions: %v", c.LogPrefix, err)
 			}
+			c.checkAndLogExceeded()
 			log.Printf("%s Modified %d subscription(s)", c.LogPrefix, len(modified))
 		}
 	}
 
 	c.subscriptionList = newSubscriptionInfo
 	return nil
+}
+
+func (c *Controller) checkAndLogExceeded() {
+	exceeded := c.dispatcher.CheckTrafficExceeded(c.Tag)
+	for _, email := range exceeded {
+		log.Printf("%s Traffic quota exhausted, blocking new connections for: %s", c.LogPrefix, email)
+	}
 }
 
 func (c *Controller) certMonitor() error {

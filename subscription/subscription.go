@@ -12,7 +12,6 @@ import (
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
-	"github.com/xtls/xray-core/features/stats"
 )
 
 // Manager handles subscription-related operations
@@ -20,7 +19,6 @@ type Manager struct {
 	server *core.Instance
 	client  api.API  
 	ibm    inbound.Manager
-	stm    stats.Manager
 	dispatcher *dispatcher.LimitingDispatcher
 }
 
@@ -30,7 +28,6 @@ func NewManager(server *core.Instance, client api.API, dispatcher *dispatcher.Li
 		server: server,
 		client: client,
 		ibm:    server.GetFeature(inbound.ManagerType()).(inbound.Manager),
-		stm:    server.GetFeature(stats.ManagerType()).(stats.Manager),
 		dispatcher:  dispatcher,
 	}
 }
@@ -146,49 +143,20 @@ func Compare(old, new *[]api.SubscriptionInfo) (deleted, added, modified []api.S
 	return deleted, added, modified
 }
 
-
 func (m *Manager) SubscriptionMonitor(
-	subscriptionList *[]api.SubscriptionInfo,
 	tag string,
 	logPrefix string,
-) (err error) {  // Added closing parenthesis here
-	// Get Subscription traffic
-	var subscriptionTraffic []api.SubscriptionTraffic
-	var upCounterList []stats.Counter
-	var downCounterList []stats.Counter
-
-	for _, subscription := range *subscriptionList {
-		up, down, upCounter, downCounter := m.getTraffic(buildUserTag(tag, &subscription))
-		if up > 0 || down > 0 {
-			subscriptionTraffic = append(subscriptionTraffic, api.SubscriptionTraffic{
-				Id: subscription.Id,
-				Upload:  up,
-				Download:  down,
-			})  // Added closing brace and parenthesis here
-
-			if upCounter != nil {
-				upCounterList = append(upCounterList, upCounter)
-			}
-			if downCounter != nil {
-				downCounterList = append(downCounterList, downCounter)
-			}
-		}
-	}
-
+) error {
+	subscriptionTraffic := m.dispatcher.DrainDeltas(tag)
+ 
 	if len(subscriptionTraffic) > 0 {
-		var err error // Define an empty error
-
-		err = m.client.ReportTraffic(&subscriptionTraffic)
-		// If report traffic error, not clear the traffic
-		if err != nil {
+		if err := m.client.ReportTraffic(&subscriptionTraffic); err != nil {
 			log.Print(err)
 		} else {
 			log.Printf("%s Report %d Subscription Traffic Usage Data", logPrefix, len(subscriptionTraffic))
-			m.resetTraffic(&upCounterList, &downCounterList)
 		}
 	}
-
-	// Report Online info
+ 
 	onlineIPs, err := m.GetOnlineIPs(tag)
 	if err != nil {
 		log.Print(err)
@@ -199,11 +167,10 @@ func (m *Manager) SubscriptionMonitor(
 			log.Printf("%s Report %d Subscription Online IPs Data", logPrefix, len(*onlineIPs))
 		}
 	}
-
+ 
 	return nil
 }
 
-// FormatEmails formats subscription info into email strings for removal
 func FormatEmails(subscriptions []api.SubscriptionInfo, tag string) []string {
 	if len(subscriptions) == 0 {
 		return nil
@@ -269,33 +236,6 @@ func (m *Manager) removeInboundSubscriptions(emails []string, tag string) error 
 		}
 	}
 	return nil
-}
-
-func (m *Manager) getTraffic(email string) (up int64, down int64, upCounter stats.Counter, downCounter stats.Counter) {
-	upName := "user>>>" + email + ">>>traffic>>>uplink"
-	downName := "user>>>" + email + ">>>traffic>>>downlink"
-	upCounter = m.stm.GetCounter(upName)
-	downCounter = m.stm.GetCounter(downName)
-	if upCounter != nil && upCounter.Value() != 0 {
-		up = upCounter.Value()
-	} else {
-		upCounter = nil
-	}
-	if downCounter != nil && downCounter.Value() != 0 {
-		down = downCounter.Value()
-	} else {
-		downCounter = nil
-	}
-	return up, down, upCounter, downCounter
-}
-
-func (m *Manager) resetTraffic(upCounterList *[]stats.Counter, downCounterList *[]stats.Counter) {
-	for _, upCounter := range *upCounterList {
-		upCounter.Set(0)
-	}
-	for _, downCounter := range *downCounterList {
-		downCounter.Set(0)
-	}
 }
 
 func (m *Manager) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
