@@ -127,7 +127,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 						Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
 						Port:    uint16(nodeInfo.ListeningPort),
 						Password: subscription.Passwd,
-						Email:  fmt.Sprintf("%s|%s|%d", tag, subscription.Email, subscription.Id),
+						Email:  fmt.Sprintf("%s_%s", tag, subscription.Email),
 						Level:  0,
 						Flow: "",
 					},
@@ -142,7 +142,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 						Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
 						Port:    uint16(nodeInfo.ListeningPort),
 						Password: Passwd,
-						Email:   fmt.Sprintf("%s|%s|%d", tag, subscription.Email, subscription.Id),
+						Email:   fmt.Sprintf("%s_%s", tag, subscription.Email),
 						Level:   0,
 						Cipher:  nodeInfo.Cipher,
 						UoT:     true,
@@ -326,7 +326,7 @@ func vmessUser(tag string, subscription *api.SubscriptionInfo) (json.RawMessage,
 		Security string `json:"security"`
 	}{
 		Level:    0,
-		Email:    fmt.Sprintf("%s|%s|%d", tag, subscription.Email, subscription.Id),
+		Email:    fmt.Sprintf("%s_%s", tag, subscription.Email),
 		ID:       subscription.Passwd,
 		Security: "auto",
 	}
@@ -350,7 +350,7 @@ func vlessUser(tag string, nodeInfo *api.RelayNodeInfo, subscription *api.Subscr
 		Encryption string `json:"encryption"`
 	}{
 		Level:      0,
-		Email:      fmt.Sprintf("%s|%s|%d", tag, subscription.Email, subscription.Id),
+		Email:      fmt.Sprintf("%s_%s", tag, subscription.Email),
 		Id:         subscription.Passwd,
 		Flow:       nodeInfo.Flow,
 		Encryption: nodeInfo.Encryption,

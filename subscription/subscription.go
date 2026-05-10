@@ -179,13 +179,13 @@ func FormatEmails(subscriptions []api.SubscriptionInfo, tag string) []string {
 
 	emails := make([]string, len(subscriptions))
 	for i, u := range subscriptions {
-		emails[i] = fmt.Sprintf("%s|%s|%d", tag, u.Email, u.Id)
+		emails[i] = fmt.Sprintf("%s_%s", tag, u.Email)
 	}
 	return emails
 }
 
 func buildUserTag(tag string, subscription *api.SubscriptionInfo) string {
-	return fmt.Sprintf("%s|%s|%d", tag, subscription.Email, subscription.Id)
+	return fmt.Sprintf("%s_%s", tag, subscription.Email)
 }
 
 // Private helper methods
