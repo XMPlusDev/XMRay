@@ -456,7 +456,7 @@ func (c *Controller) buildNodeTag() string {
 }
 
 func (c *Controller) buildRNodeTag() string {
-	return fmt.Sprintf("Relay_%s_%d_%d",
+	return fmt.Sprintf("Relay_%s_%s_%d",
 		c.relaynodeInfo.NodeType,
 		c.relaynodeInfo.ListeningPort,
 		c.relaynodeInfo.NodeID)

@@ -134,8 +134,9 @@ func Compare(old, new *[]api.SubscriptionInfo) (deleted, added, modified []api.S
 			if oldSub.SpeedLimit != newSub.SpeedLimit || 
 			   oldSub.IPLimit != newSub.IPLimit ||
 			   oldSub.Passwd != newSub.Passwd ||
-			   oldSub.Email != newSub.Email {
-				modified = append(modified, newSub)
+			   oldSub.Email != newSub.Email ||
+			   oldSub.TrafficLimit != newSub.TrafficLimit{
+			modified = append(modified, newSub)
 			}
 		}
 	}
