@@ -45,6 +45,10 @@ func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 	if server.Type == "" {
 		return nil, fmt.Errorf("server Type cannot be empty")
 	}
+	
+	if server.Version < 2605130 {
+		return nil, fmt.Errorf("Update your panel to the latest version v%d to use this backend version", server.Version)
+	}
 
 	c.resp.Store(server)
 

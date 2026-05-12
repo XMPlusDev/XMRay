@@ -170,6 +170,7 @@ func (l *Limiter) DeleteSubscriptionBuckets(tag string, emails []string) {
 		inboundInfo := value.(*InboundInfo)
 		for _, email := range emails {
 			inboundInfo.BucketHub.Delete(email)
+			inboundInfo.SubscriptionInfo.Delete(email)
 			
 			if inboundInfo.trafficRedis != nil {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

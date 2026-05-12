@@ -32,7 +32,7 @@ type serverConfig struct {
 	server          `json:"server"`
 	transitServer   `json:"transit_server"`
 	UpdateInterval   int `json:"update_interval"`
-	apiVersion       string  `json:"version"`
+	Version   	     int 	 `json:"api_version"`
 }
 
 type server struct {
