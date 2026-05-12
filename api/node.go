@@ -47,7 +47,7 @@ func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 	}
 	
 	if server.Version < 2605130 {
-		return nil, fmt.Errorf("Update your panel to the latest version v%d to use this backend version", server.Version)
+		return nil, fmt.Errorf("Update your panel to the latest version to use this backend version. Current Version: v%d ", server.Version)
 	}
 
 	c.resp.Store(server)
