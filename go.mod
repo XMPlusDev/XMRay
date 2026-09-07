@@ -13,7 +13,7 @@ require (
 	github.com/r3labs/diff/v2 v2.15.1
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/refraction-networking/utls v1.8.3-0.20260301010127-aa6edf4b11af
-	github.com/sagernet/sing v0.8.14
+	github.com/sagernet/sing v0.9.0
 	github.com/sagernet/sing-shadowsocks v0.2.9
 	github.com/shirou/gopsutil/v4 v4.26.7
 	github.com/sirupsen/logrus v1.10.1
