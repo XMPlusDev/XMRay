@@ -1562,8 +1562,8 @@ github.com/sacloud/packages-go v0.1.0 h1:rixWcvkVUI4kX6UYTFJbQgZIoBoNhN48MivHIu3
 github.com/sacloud/packages-go v0.1.0/go.mod h1:ntmPnjF8+mGWNtxgBmO0CrLphUlmRkpy+DztjlECp8M=
 github.com/sacloud/saclient-go v0.4.0 h1:d4CqjKDU0muPVukZ2qGB9Me6ANEcMg73z5tIqXIyGWA=
 github.com/sacloud/saclient-go v0.4.0/go.mod h1:5CqxypkPgUW6qZxBGRdKX3I+mVx/OWbbFrrRm6LBNeE=
-github.com/sagernet/sing v0.8.14 h1:S6Netv4F61uNAuD/sUbHnGuNUEPwtL08Ouk0//CVYgM=
-github.com/sagernet/sing v0.8.14/go.mod h1:olXxWQNqRW/l2Q6JI3b2Qmz8iQnIFlOeeH8bx6JhgUA=
+github.com/sagernet/sing v0.9.0 h1:NQvJxtYEl+2uIh/Bkxf5cqAZfZuFCQKQe2z85Pbfxag=
+github.com/sagernet/sing v0.9.0/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/sagernet/sing-shadowsocks v0.2.9 h1:Paep5zCszRKsEn8587O0MnhFWKJwDW1Y4zOYYlIxMkM=
 github.com/sagernet/sing-shadowsocks v0.2.9/go.mod h1:TE/Z6401Pi8tgr0nBZcM/xawAI6u3F6TTbz4nH/qw+8=
 github.com/sagikazarmark/crypt v0.10.0/go.mod h1:gwTNHQVoOS3xp9Xvz5LLR+1AauC5M6880z5NWzdhOyQ=
