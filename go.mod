@@ -1,6 +1,6 @@
 module github.com/xmplusdev/xmray
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/xtls/xray-core v1.260327.1-0.20260825183033-f124daf5a37c
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/net v0.58.0
 	golang.org/x/time v0.15.0
 	lukechampine.com/blake3 v1.4.1
