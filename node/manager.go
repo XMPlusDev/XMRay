@@ -291,18 +291,13 @@ func buildQuicParams(q *api.QuicParamsSettings) *conf.QuicParamsConfig {
 		MaxIdleTimeout:              q.MaxIdleTimeout,
 		KeepAlivePeriod:             q.KeepAlivePeriod,
 		DisablePathMTUDiscovery:     q.DisablePathMTUDiscovery,
-		MaxIncomingStreams:           q.MaxIncomingStreams,
+		MaxIncomingStreams:          q.MaxIncomingStreams,
+		BrutalDisableLossCompensation: q.BrutalDisableLossCompensation,
+        DisableChromeParrot:         q.DisableChromeParrot,	
+        DisableGSO:                  q.DisableGSO,
+		DisableStatelessReset:       q.DisableStatelessReset,
 	}
-	if q.UdpHop != nil {
-		hop := conf.UdpHop{PortList: q.UdpHop.Ports}
-		if q.UdpHop.Interval != nil {
-			hop.Interval = conf.Int32Range{
-				From: q.UdpHop.Interval.From,
-				To:   q.UdpHop.Interval.To,
-			}
-		}
-		qp.UdpHop = hop
-	}
+
 	return qp
 }
 

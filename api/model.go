@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/xtls/xray-core/infra/conf"
 )
 
 const (
@@ -153,23 +152,12 @@ type MaskEntry struct {
 	Settings *json.RawMessage
 }
 
-type Int32RangeSettings struct {
-	From int32
-	To   int32
-}
-
-type UdpHopSettings struct {
-	Ports    conf.PortList
-	Interval *Int32RangeSettings
-}
-
 type QuicParamsSettings struct {
 	Congestion                  string
 	Debug                       bool
 	BbrProfile                  string
 	BrutalUp                    string
 	BrutalDown                  string
-	UdpHop                      *UdpHopSettings
 	InitStreamReceiveWindow     uint64
 	MaxStreamReceiveWindow      uint64
 	InitConnectionReceiveWindow uint64
@@ -178,6 +166,10 @@ type QuicParamsSettings struct {
 	KeepAlivePeriod             int64
 	DisablePathMTUDiscovery     bool
 	MaxIncomingStreams          int64
+	BrutalDisableLossCompensation bool
+	DisableChromeParrot           bool
+	DisableGSO                    bool 
+	DisableStatelessReset         bool  
 }
 
 type SocketSettings struct {

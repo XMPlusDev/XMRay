@@ -60,8 +60,12 @@ func BlackholeOutboundBuilder(tag string) (*core.OutboundHandlerConfig, error) {
 	outboundDetourConfig := &conf.OutboundDetourConfig{}
 	outboundDetourConfig.Protocol = "blackhole"
 	outboundDetourConfig.Tag = fmt.Sprintf("%s_blackhole", tag)
-
-	blackholeSetting := &conf.BlackholeConfig{Response: json.RawMessage(`{"type":"http"}`)}
+	
+	rc := &conf.ResponseConfig{
+		Type: "http",
+	}
+	
+	blackholeSetting := &conf.BlackholeConfig{Response: rc}
 	settingBytes, err := json.Marshal(blackholeSetting)
 	if err != nil {
 		return nil, fmt.Errorf("marshal blackhole config failed: %s", err)

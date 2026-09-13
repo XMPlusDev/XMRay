@@ -863,35 +863,17 @@ func parseQuicParams(qp *simplejson.Json) (*QuicParamsSettings, error) {
 	if v, err := qp.Get("maxIncomingStreams").Int64(); err == nil {
 		q.MaxIncomingStreams = v
 	}
-
-	if udpHopData, ok := qp.CheckGet("udpHop"); ok {
-		hop := &UdpHopSettings{}
-		if portsData, ok := udpHopData.CheckGet("ports"); ok {
-			var portStr string
-			if s, err := portsData.String(); err == nil {
-				portStr = s
-			} else if arr, err := portsData.StringArray(); err == nil {
-				portStr = strings.Join(arr, ",")
-			} else {
-				return nil, fmt.Errorf("udpHop.ports: unsupported type, expected string or array")
-			}
-			portRanges, err := parsePortString(portStr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse UdpHop ports: %w", err)
-			}
-			if len(portRanges) == 0 {
-				return nil, fmt.Errorf("no valid UdpHop port ranges found in: %s", portStr)
-			}
-			hop.Ports = conf.PortList{Range: portRanges}
-		}
-		if intervalData, ok := udpHopData.CheckGet("interval"); ok {
-			from, errFrom := intervalData.Get("from").Int()
-			to, errTo := intervalData.Get("to").Int()
-			if errFrom == nil && errTo == nil {
-				hop.Interval = &Int32RangeSettings{From: int32(from), To: int32(to)}
-			}
-		}
-		q.UdpHop = hop
+	if v, err := qp.Get("brutalDisableLossCompensation").Bool(); err == nil {
+		q.BrutalDisableLossCompensation = v
+	}
+	if v, err := qp.Get("disableGSO").Bool(); err == nil {
+		q.DisableGSO = v
+	}
+	if v, err := qp.Get("disableChromeParrot").Bool(); err == nil {
+		q.DisableChromeParrot = v
+	}
+	if v, err := qp.Get("disableStatelessReset").Bool(); err == nil {
+		q.DisableStatelessReset = v
 	}
 
 	return q, nil
