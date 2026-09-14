@@ -3,7 +3,7 @@ module github.com/xmplusdev/xmray
 go 1.27
 
 require (
-	github.com/alicebob/miniredis/v2 v2.38.0
+	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/bitly/go-simplejson v0.5.1
 	github.com/cloudflare/circl v1.6.5
 	github.com/fsnotify/fsnotify v1.10.1
