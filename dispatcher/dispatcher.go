@@ -111,6 +111,9 @@ type LimitingDispatcher struct {
 
 	connsMu sync.Mutex
 	conns   map[string]map[netModule.Conn]struct{}
+	
+	linksMu sync.Mutex
+	links map[string]map[*transport.Link]struct{}
 }
 
 func (ld *LimitingDispatcher) Type() interface{} { return routing.DispatcherType() }
@@ -163,6 +166,7 @@ type sessionContext struct {
 	user      *protocol.MemoryUser
 	bucket    *rate.Limiter
 	hasBucket bool
+	link      *transport.Link
 }
 
 func (ld *LimitingDispatcher) trackConn(key string, conn netModule.Conn) func() {
@@ -234,6 +238,9 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 		untrack := ld.trackConn(info.email, sessionInbound.Conn)
 		context.AfterFunc(ctx, untrack)
 	}
+	
+	untrackLink := ld.trackLink(info.email, link)
+	context.AfterFunc(ctx, untrackLink)
 
 	return &sessionContext{
 		inbound:   sessionInbound,
@@ -241,7 +248,34 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 		user:      user,
 		bucket:    bucket,
 		hasBucket: isSpeedLimited && bucket != nil,
+		link:      link,
 	}, nil
+}
+
+func (ld *LimitingDispatcher) trackLink(key string, link *transport.Link) func() {
+	if link == nil || key == "" {
+		return func() {}
+	}
+	ld.linksMu.Lock()
+	if ld.links == nil {
+		ld.links = make(map[string]map[*transport.Link]struct{})
+	}
+	if ld.links[key] == nil {
+		ld.links[key] = make(map[*transport.Link]struct{})
+	}
+	ld.links[key][link] = struct{}{}
+	ld.linksMu.Unlock()
+
+	return func() {
+		ld.linksMu.Lock()
+		if set, ok := ld.links[key]; ok {
+			delete(set, link)
+			if len(set) == 0 {
+				delete(ld.links, key)
+			}
+		}
+		ld.linksMu.Unlock()
+	}
 }
 
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {
@@ -313,19 +347,35 @@ func (ld *LimitingDispatcher) DeleteSubscriptionBuckets(tag string, emails []str
 	ld.limiter.DeleteSubscriptionBuckets(tag, emails)
 
 	ld.connsMu.Lock()
-	var toClose []netModule.Conn
+	var conns []netModule.Conn
 	for _, key := range emails {
 		if set, ok := ld.conns[key]; ok {
 			for c := range set {
-				toClose = append(toClose, c)
+				conns = append(conns, c)
 			}
 			delete(ld.conns, key)
 		}
 	}
 	ld.connsMu.Unlock()
 
-	for _, c := range toClose {
+	ld.linksMu.Lock()
+	var links []*transport.Link
+	for _, key := range emails {
+		if set, ok := ld.links[key]; ok {
+			for l := range set {
+				links = append(links, l)
+			}
+			delete(ld.links, key)
+		}
+	}
+	ld.linksMu.Unlock()
+
+	for _, c := range conns {
 		c.Close()
+	}
+	for _, l := range links {
+		common.Close(l.Writer)
+		common.Interrupt(l.Reader)
 	}
 }
 
