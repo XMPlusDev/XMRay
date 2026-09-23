@@ -186,6 +186,7 @@ type SocketSettings struct {
 	V6only               bool
 	TFO                  interface{}
 	TrustedXForwardedFor []string
+	AddressPortStrategy  string
 }
 
 type XhttpSettings struct {

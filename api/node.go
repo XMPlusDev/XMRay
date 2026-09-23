@@ -520,6 +520,9 @@ func fillSocketSettings(socketSettings *simplejson.Json, s *SocketSettings) {
 	if v, err := socketSettings.Get("tcpCongestion").String(); err == nil {
 		s.TcpCongestion = v
 	}
+	if v, err := socketSettings.Get("addressPortStrategy").String(); err == nil {
+		s.AddressPortStrategy = v
+	}
 	if v, err := socketSettings.Get("v6only").Bool(); err == nil {
 		s.V6only = v
 	}

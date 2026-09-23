@@ -585,10 +585,6 @@ Choose names that blend in with real CDN traffic. Some suggestions:
       "bbrProfile": "standard",
       "brutalUp": "100mbps",
       "brutalDown": "100mbps",
-      "udpHop": {
-        "ports": ["443,8443"],
-        "interval": { "from": 10, "to": 30 }
-      },
       "initStreamReceiveWindow": 8388608,
       "maxStreamReceiveWindow": 8388608,
       "initConnectionReceiveWindow": 20971520,
@@ -596,7 +592,11 @@ Choose names that blend in with real CDN traffic. Some suggestions:
       "maxIdleTimeout": 30,
       "keepAlivePeriod": 10,
       "disablePathMTUDiscovery": false,
-      "maxIncomingStreams": 100
+      "maxIncomingStreams": 100,
+	  "brutalDisableLossCompensation": true,
+	  "DisableChromeParrot":true,
+	  "disableGSO": false,
+	  "disableStatelessReset": false
     }
   }
 }
@@ -614,8 +614,6 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 | `bbrProfile` | string | BBR profile: `"conservative"`, `"standard"`, `"aggressive"` |
 | `brutalUp` | string | Upload bandwidth for brutal congestion, e.g. `"100mbps"`, `"1gbps"` |
 | `brutalDown` | string | Download bandwidth for brutal congestion |
-| `udpHop.ports` | string/array | Port list for UDP hopping |
-| `udpHop.interval` | object | Hop interval range in seconds `{ "from": N, "to": N }` |
 | `initStreamReceiveWindow` | uint64 | Initial stream receive window size (bytes) |
 | `maxStreamReceiveWindow` | uint64 | Max stream receive window size (bytes) |
 | `initConnectionReceiveWindow` | uint64 | Initial connection receive window size (bytes) |
@@ -673,15 +671,14 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
     "domainStrategy": "AsIs",
     "tcpFastOpen": false,
     "tcpKeepAliveInterval": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
+    "tcpKeepAliveIdle": 120,
+    "tcpUserTimeout": 10000,
+    "tcpMaxSeg": 1440,
+    "tcpWindowClamp": 600,
     "tcpMptcp": false,
     "tcpCongestion": "bbr",
-    "interface": "",
     "v6only": false,
-    "dialerProxy": "",
+    "addressPortStrategy": "",
     "trustedXForwardedFor": []
   }
 }
@@ -702,10 +699,9 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 | `tcpWindowClamp` | int | `0` | Both | Clamp TCP receive window to this size (`TCP_WINDOW_CLAMP`). |
 | `tcpMptcp` | bool | `false` | Both | Enable Multipath TCP. Requires kernel ≥ 5.6 with MPTCP compiled in. |
 | `tcpCongestion` | string | `""` | Both | TCP congestion algorithm: `"bbr"`, `"cubic"`, `"reno"`. Must be loaded in kernel (`modprobe tcp_bbr`). |
-| `interface` | string | `""` | Both | Bind socket to a specific network interface, e.g. `"eth0"`, `"wg0"`. |
 | `v6only` | bool | `false` | Both | When `true`, IPv6 socket will not accept IPv4-mapped connections (`IPV6_V6ONLY`). |
-| `dialerProxy` | string | `""` | Outbound | Tag of another outbound to use as underlying transport. Enables outbound chaining. |
 | `trustedXForwardedFor` | string[] | `[]` | Inbound | Trusted upstream CIDRs for `X-Forwarded-For` header extraction. HTTP-based inbounds only. |
+| `addressPortStrategy`  | string | `none` | Inbound | `"none" | "SrvPortOnly" | "SrvAddressOnly" | "SrvPortAndAddress" | "TxtPortOnly" | "TxtAddressOnly" | "TxtPortAndAddress"` Use SRV or TXT records to specify the destination address/port for outbound traffic; the default is none, meaning it's disabled. |
 
 ##### `domainStrategy` values
 

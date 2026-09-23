@@ -19,7 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/xtls/xray-core v1.260327.1-0.20260912200935-c412e77a9b71
+	github.com/xtls/xray-core v1.260327.1-0.20260920225103-d562d8947d31
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0
 	golang.org/x/time v0.16.0

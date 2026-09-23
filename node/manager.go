@@ -336,6 +336,9 @@ func buildSocketConfig(s *api.SocketSettings, isInbound bool) *conf.SocketConfig
 	if s.TFO != nil {
 		sc.TFO = s.TFO
 	}
+	if s.AddressPortStrategy != "" {
+		sc.AddressPortStrategy = s.AddressPortStrategy
+	}
 	if isInbound && len(s.TrustedXForwardedFor) > 0 {
 		sc.TrustedXForwardedFor = s.TrustedXForwardedFor
 	}

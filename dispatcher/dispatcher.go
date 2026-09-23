@@ -7,6 +7,7 @@ import (
 	netModule "net"
 	"reflect"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"github.com/xtls/xray-core/common"
@@ -53,7 +54,7 @@ func maskIP(ipStr string, keepSegments int) string {
 
 type sessionInfo struct {
 	tag   string
-	email string
+	email string 
 	ip    string
 }
 
@@ -107,6 +108,9 @@ type LimitingDispatcher struct {
 	limiter *limiter.Limiter
 	ibm     inbound.Manager
 	stm     stats.Manager
+
+	connsMu sync.Mutex
+	conns   map[string]map[netModule.Conn]struct{}
 }
 
 func (ld *LimitingDispatcher) Type() interface{} { return routing.DispatcherType() }
@@ -161,6 +165,34 @@ type sessionContext struct {
 	hasBucket bool
 }
 
+func (ld *LimitingDispatcher) trackConn(key string, conn netModule.Conn) func() {
+	if conn == nil || key == "" {
+		return func() {}
+	}
+
+	ld.connsMu.Lock()
+	if ld.conns == nil {
+		ld.conns = make(map[string]map[netModule.Conn]struct{})
+	}
+	if ld.conns[key] == nil {
+		ld.conns[key] = make(map[netModule.Conn]struct{})
+	}
+	ld.conns[key][conn] = struct{}{}
+	ld.connsMu.Unlock()
+
+	return func() {
+		ld.connsMu.Lock()
+		if set, ok := ld.conns[key]; ok {
+			delete(set, conn)
+			if len(set) == 0 {
+				delete(ld.conns, key)
+			}
+		}
+		ld.connsMu.Unlock()
+	}
+}
+
+
 func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transport.Link) (*sessionContext, error) {
 	sessionInbound := session.InboundFromContext(ctx)
 	if sessionInbound == nil {
@@ -198,6 +230,11 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 		return nil, errors.New("subscription limit exceeded for: ", info.email)
 	}
 
+	if sessionInbound.Conn != nil {
+		untrack := ld.trackConn(info.email, sessionInbound.Conn)
+		context.AfterFunc(ctx, untrack)
+	}
+
 	return &sessionContext{
 		inbound:   sessionInbound,
 		info:      info,
@@ -206,12 +243,6 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 		hasBucket: isSpeedLimited && bucket != nil,
 	}, nil
 }
-
-// Traffic counting for "user>>>email>>>traffic>>>uplink/downlink" is already
-// performed by the inner xray-core dispatcher (gated by the UserUplink /
-// UserDownlink policy flags, see instance.policyConnectionConfig). Wrapping
-// the link with our own counter.StatWriter/StatReader here would add to the
-// same stats.Counter a second time and double-count every byte.
 
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {
 	sc, err := ld.resolveSession(ctx, link)
@@ -280,6 +311,22 @@ func (ld *LimitingDispatcher) DeleteInboundLimiter(tag string) error {
 
 func (ld *LimitingDispatcher) DeleteSubscriptionBuckets(tag string, emails []string) {
 	ld.limiter.DeleteSubscriptionBuckets(tag, emails)
+
+	ld.connsMu.Lock()
+	var toClose []netModule.Conn
+	for _, key := range emails {
+		if set, ok := ld.conns[key]; ok {
+			for c := range set {
+				toClose = append(toClose, c)
+			}
+			delete(ld.conns, key)
+		}
+	}
+	ld.connsMu.Unlock()
+
+	for _, c := range toClose {
+		c.Close()
+	}
 }
 
 func (ld *LimitingDispatcher) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
