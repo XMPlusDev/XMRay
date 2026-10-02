@@ -265,8 +265,6 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	return nodeInfo, nil
 }
 
-// parseFallbackConfigs parses a "fallbacks" array from the transport settings JSON.
-// Expected shape per entry: {"sni":"","alpn":"","path":"","dest":"addr:port","xver":0}
 func parseFallbackConfigs(transportData *simplejson.Json) []FallbackConfig {
 	fallbacksData, ok := transportData.CheckGet("fallbacks")
 	if !ok {
@@ -296,14 +294,13 @@ func parseFallbackConfigs(transportData *simplejson.Json) []FallbackConfig {
 			fc.ProxyProtocolVer = uint64(v)
 		}
 		if fc.Dest == "" {
-			continue // dest is mandatory; skip invalid entries
+			continue 
 		}
 		configs = append(configs, fc)
 	}
 	return configs
 }
 
-// parseNetworkSettings fills transport-related fields common to both NodeInfo and RelayNodeInfo.
 func parseNetworkSettings(
 	transportData *simplejson.Json,
 	networkType *string,
@@ -490,7 +487,6 @@ func parseNetworkSettings(
 	return nil
 }
 
-// fillSocketSettings populates a SocketSettings from JSON — shared by node and relay.
 func fillSocketSettings(socketSettings *simplejson.Json, s *SocketSettings) {
 	s.Enabled = true
 	if v, err := socketSettings.Get("acceptProxyProtocol").Bool(); err == nil {

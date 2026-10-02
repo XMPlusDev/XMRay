@@ -32,7 +32,7 @@ type ClientInfo struct {
 
 func New(apiConfig *Config) *Client {
 	if !strings.HasPrefix(apiConfig.APIHost, "https://") {
-		log.Fatalf("ERROR: APIHost must use HTTPS protocol. Got: %s", apiConfig.APIHost)
+		log.Fatalf("ERROR: API host must use HTTPS protocol. Got: %s", apiConfig.APIHost)
 	}
 
 	client := resty.New()
@@ -62,8 +62,6 @@ func New(apiConfig *Config) *Client {
 	}
 }
 
-// ForNode returns a new Client bound to the given nodeID, sharing the same
-// HTTP client and credentials. Used in server ID mode to spawn per-node clients.
 func (c *Client) ForNode(nodeID int) *Client {
 	return &Client{
 		client:           c.client,

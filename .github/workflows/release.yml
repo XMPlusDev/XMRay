@@ -41,7 +41,7 @@ jobs:
       - name: Build XMRay
         run: |
           mkdir -p build_assets
-          go build -v -o build_assets/XMRay -trimpath -ldflags "-s -w -buildid=" .
+          go build -v -o build_assets/XMRay -trimpath -ldflags "-s -w -buildid=" -tags "http2legacy" .
 
       - name: Prepare to release
         run: |

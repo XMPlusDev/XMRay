@@ -196,6 +196,31 @@ func (ld *LimitingDispatcher) trackConn(key string, conn netModule.Conn) func() 
 	}
 }
 
+func (ld *LimitingDispatcher) trackLink(key string, link *transport.Link) func() {
+	if link == nil || key == "" {
+		return func() {}
+	}
+	ld.linksMu.Lock()
+	if ld.links == nil {
+		ld.links = make(map[string]map[*transport.Link]struct{})
+	}
+	if ld.links[key] == nil {
+		ld.links[key] = make(map[*transport.Link]struct{})
+	}
+	ld.links[key][link] = struct{}{}
+	ld.linksMu.Unlock()
+
+	return func() {
+		ld.linksMu.Lock()
+		if set, ok := ld.links[key]; ok {
+			delete(set, link)
+			if len(set) == 0 {
+				delete(ld.links, key)
+			}
+		}
+		ld.linksMu.Unlock()
+	}
+}
 
 func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transport.Link) (*sessionContext, error) {
 	sessionInbound := session.InboundFromContext(ctx)
@@ -250,32 +275,6 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 		hasBucket: isSpeedLimited && bucket != nil,
 		link:      link,
 	}, nil
-}
-
-func (ld *LimitingDispatcher) trackLink(key string, link *transport.Link) func() {
-	if link == nil || key == "" {
-		return func() {}
-	}
-	ld.linksMu.Lock()
-	if ld.links == nil {
-		ld.links = make(map[string]map[*transport.Link]struct{})
-	}
-	if ld.links[key] == nil {
-		ld.links[key] = make(map[*transport.Link]struct{})
-	}
-	ld.links[key][link] = struct{}{}
-	ld.linksMu.Unlock()
-
-	return func() {
-		ld.linksMu.Lock()
-		if set, ok := ld.links[key]; ok {
-			delete(set, link)
-			if len(set) == 0 {
-				delete(ld.links, key)
-			}
-		}
-		ld.linksMu.Unlock()
-	}
 }
 
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {

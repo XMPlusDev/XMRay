@@ -18,10 +18,10 @@ import (
 
 	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/controller"
-	limitDispatcher "github.com/xmplusdev/xmray/dispatcher"
+	limitDispatcher "github.com/xmplusdev/xmray/core/dispatcher"
 	"github.com/xmplusdev/xmray/limiter"
-	"github.com/xmplusdev/xmray/scheduler"
-	_ "github.com/xmplusdev/xmray/distro/all"
+	"github.com/xmplusdev/xmray/helper/scheduler"
+	_ "github.com/xmplusdev/xmray/core/distro/all"
 )
 
 type Instance struct {
@@ -57,7 +57,6 @@ func (i *Instance) PushEvent(event string, data any) error {
 	return <-result
 }
 
-// drainReverbOutbound delivers queued push messages over the active Reverb connection.
 func (i *Instance) drainReverbOutbound() {
 	for ob := range i.reverbOutbound {
 		i.reverbMu.Lock()

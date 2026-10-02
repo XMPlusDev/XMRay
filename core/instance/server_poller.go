@@ -8,7 +8,7 @@ import (
 	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/controller"
 	"github.com/xmplusdev/xmray/node"
-	"github.com/xmplusdev/xmray/scheduler"
+	"github.com/xmplusdev/xmray/helper/scheduler"
 )
 
 const defaultServerNodePollInterval = 60 * time.Second
@@ -20,11 +20,6 @@ func pollDuration(seconds int) time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-// startServerNodePoller creates and starts a PeriodicTask that watches the
-// panel's node list and dynamically starts/stops controllers. The task is
-// stored on the Instance so Close() shuts it down with everything else.
-// A separate goroutine listens on serverPollTrigger so a "server_change"
-// Reverb event causes an immediate sync without waiting for the next tick.
 func (i *Instance) startServerNodePoller(
 	rootClient *api.Client,
 	controllerConfig *node.Config,
@@ -51,9 +46,6 @@ func (i *Instance) startServerNodePoller(
 
 	i.serverPoller = task
 
-	// Trigger listener: fires an immediate sync when a "server_change" event
-	// arrives over Reverb, then resets the task so the next scheduled fire
-	// is a full interval away.
 	ctx, cancel := context.WithCancel(context.Background())
 	i.reverbCancels = append(i.reverbCancels, cancel)
 	go func() {
@@ -71,8 +63,6 @@ func (i *Instance) startServerNodePoller(
 	}()
 }
 
-// syncServerNodes fetches the current node list, starts/stops controllers as
-// needed, and returns the poll interval from the API response.
 func (i *Instance) syncServerNodes(
 	rootClient *api.Client,
 	controllerConfig *node.Config,
@@ -89,13 +79,11 @@ func (i *Instance) syncServerNodes(
 	i.statusLock.Lock()
 	defer i.statusLock.Unlock()
 
-	// Build set of node IDs returned by the panel.
 	panelIDs := make(map[int]struct{}, len(resp.Nodes))
 	for _, n := range resp.Nodes {
 		panelIDs[n.NodeID] = struct{}{}
 	}
 
-	// Stop controllers for nodes no longer in the panel list.
 	for nodeID, t := range i.controllerMap {
 		if _, exists := panelIDs[nodeID]; !exists {
 			log.Printf("[ServerPoller] Node %d removed — stopping controller", nodeID)
@@ -109,10 +97,9 @@ func (i *Instance) syncServerNodes(
 		}
 	}
 
-	// Start controllers for newly added nodes.
 	for _, n := range resp.Nodes {
 		if _, exists := i.controllerMap[n.NodeID]; exists {
-			continue // already running
+			continue 
 		}
 		log.Printf("[ServerPoller] Node %d added — starting controller", n.NodeID)
 		nodeClient := rootClient.ForNode(n.NodeID)

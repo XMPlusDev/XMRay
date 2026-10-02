@@ -2,7 +2,7 @@ package instance
 
 import (
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/cert"
+	"github.com/xmplusdev/xmray/helper/cert"
 	"github.com/xmplusdev/xmray/limiter"
 	"github.com/xmplusdev/xmray/node"
 )

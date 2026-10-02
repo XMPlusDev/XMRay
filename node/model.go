@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/xmplusdev/xmray/cert"
+	"github.com/xmplusdev/xmray/helper/cert"
 )
 
 type Config struct {

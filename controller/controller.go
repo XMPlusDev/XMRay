@@ -10,11 +10,11 @@ import (
 	"github.com/xtls/xray-core/core"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/cert"
-	"github.com/xmplusdev/xmray/dispatcher"
-	"github.com/xmplusdev/xmray/monitor"
+	"github.com/xmplusdev/xmray/helper/cert"
+	"github.com/xmplusdev/xmray/core/dispatcher"
+	"github.com/xmplusdev/xmray/helper/monitor"
 	"github.com/xmplusdev/xmray/node"
-	"github.com/xmplusdev/xmray/scheduler"
+	"github.com/xmplusdev/xmray/helper/scheduler"
 	"github.com/xmplusdev/xmray/subscription"
 )
 

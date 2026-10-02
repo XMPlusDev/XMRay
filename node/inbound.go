@@ -15,7 +15,7 @@ import (
 	"github.com/xtls/xray-core/infra/conf"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/cert"
+	"github.com/xmplusdev/xmray/helper/cert"
 )
 
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {

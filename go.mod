@@ -2,6 +2,8 @@ module github.com/xmplusdev/xmray
 
 go 1.27
 
+toolchain go1.27.1
+
 require (
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/bitly/go-simplejson v0.5.1

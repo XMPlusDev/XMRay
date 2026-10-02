@@ -5,21 +5,12 @@ import (
 	"time"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/monitor"
-	"github.com/xmplusdev/xmray/scheduler"
+	"github.com/xmplusdev/xmray/helper/monitor"
+	"github.com/xmplusdev/xmray/helper/scheduler"
 )
 
-// serverStatusReportInterval is how often live server stats (cpu, mem, load,
-// network speed, etc.) are reported to the panel. This is intentionally
-// decoupled from the node poll interval — the panel caches each report in
-// Redis and broadcasts it to admins in real time, batching the actual DB
-// writes separately, so reporting frequently here is cheap for the backend
-// while keeping the admin dashboard live.
 const serverStatusReportInterval = 5 * time.Second
 
-// startServerStatusTask starts a single server-status reporting task for the
-// whole machine. Used in server ID mode so status is reported once regardless
-// of how many nodes run on this server.
 func (i *Instance) startServerStatusTask(
 	client *api.Client,
 ) {
@@ -71,7 +62,6 @@ func (i *Instance) reportServerStatus(client *api.Client) error {
 			Data:     status,
 		}
 		if err := pusher("server_status", payload); err == nil {
-			//log.Printf("[ServerStatus] Pushed server status via Reverb")
 			return nil
 		}
 	}
@@ -82,9 +72,4 @@ func (i *Instance) reportServerStatus(client *api.Client) error {
 	return nil
 }
 
-// updateServerStatusInterval previously kept the status task's interval in
-// sync with the node poll interval. Server status reporting is now a fixed
-// serverStatusReportInterval (10s), independent of the (often much longer)
-// node poll interval, so this is intentionally a no-op — kept so callers in
-// server_poller.go don't need to change.
 func (i *Instance) updateServerStatusInterval(_ time.Duration) {}

@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/dispatcher"
+	"github.com/xmplusdev/xmray/core/dispatcher"
 	"github.com/xmplusdev/xmray/limiter"
 
 	"github.com/xtls/xray-core/common/protocol"

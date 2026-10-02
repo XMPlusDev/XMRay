@@ -39,7 +39,6 @@ type pusherConnected struct {
 
 const reverbChannel = "private-xmplus"
 
-// reverbSession state — one per active connection, shared for outbound push.
 type reverbSession struct {
 	conn   *websocket.Conn
 	mu     sync.Mutex
@@ -283,8 +282,6 @@ func (i *Instance) handleReverbMessage(msg pusherMessage, channel string) {
 		}
 
 	case "server_updated":
-		// A node was added or removed on the panel — trigger an immediate
-		// server node sync without waiting for the next scheduled poll.
 		select {
 		case i.serverPollTrigger <- struct{}{}:
 			log.Printf("[Reverb] server_updated received — queued server poll trigger")

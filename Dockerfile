@@ -4,7 +4,7 @@ WORKDIR /app
 COPY . .
 ENV CGO_ENABLED=0
 RUN go mod tidy
-RUN go build -v -o XMRay -trimpath -ldflags "-s -w -buildid=" .
+RUN go build -v -o XMRay -trimpath -ldflags "-s -w -buildid=" -tags "http2legacy" .
 
 FROM alpine
 RUN apk --update --no-cache add tzdata ca-certificates \

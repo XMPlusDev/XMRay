@@ -381,8 +381,6 @@ type ServerStatus struct {
 	Uptime      uint64  `json:"uptime"`
 }
 
-// ServerStatusPayload is the Reverb envelope for a server_status event.
-// server_id identifies the machine (matches ApiConfig.ServerID / machines.id).
 type ServerStatusPayload struct {
 	ServerID int           `json:"server_id"`
 	Data     *ServerStatus `json:"data"`
