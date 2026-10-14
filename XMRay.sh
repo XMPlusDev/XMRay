@@ -458,7 +458,7 @@ show_XMRay_tls_generate() {
     echo -n ""
     read -p "Enter domain name (eg, tld.com): " domain
     
-    /usr/local/XMRay/XMRay tls generate --domain "$domain" --file "/ect/XMRay/$domain"
+    /usr/local/XMRay/XMRay tls generate --domain "$domain" --expire 87600h --file "/etc/XMRay/$domain"
     
     echo ""
     if [[ $# == 0 ]]; then
