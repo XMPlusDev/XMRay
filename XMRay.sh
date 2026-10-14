@@ -456,10 +456,29 @@ show_XMRay_certRenew() {
 
 show_XMRay_tls_generate() {
     echo -n ""
-    read -p "Enter domain name (eg, tld.com): " domain
-    
-    /usr/local/XMRay/XMRay tls generate --domain "$domain" --expire 87600h --file "/etc/XMRay/$domain"
-    
+    read -p "Enter domain name(s), separated by commas or spaces (eg, tld.com,www.tld.com): " domains
+
+    # split on commas and/or spaces, drop empty entries
+    IFS=', ' read -r -a raw_list <<< "$domains"
+    valid_domains=()
+    args=()
+    for d in "${raw_list[@]}"; do
+        if [[ -n "$d" ]]; then
+            valid_domains+=("$d")
+            args+=(--domain "$d")
+        fi
+    done
+
+    if [[ ${#valid_domains[@]} -eq 0 ]]; then
+        echo -e "${red}No domain name entered${plain}"
+    else
+        # first domain names the files; replace * so wildcards make a safe filename
+        name="${valid_domains[0]//\*/wildcard}"
+        mkdir -p /etc/XMRay
+        /usr/local/XMRay/XMRay tls generate "${args[@]}" --expire 87600h --file "/etc/XMRay/$name"
+        chmod 600 "/etc/XMRay/$name.key"
+    fi
+
     echo ""
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -663,11 +682,11 @@ if [[ $# > 0 ]]; then
         ;;
 		"renew") check_install 0 && show_XMRay_certRenew 0
         ;;
-		"ech") check_install && show_XMRay_tls_ech 0
+		"ech") check_install 0 && show_XMRay_tls_ech 0
         ;;
-		"hash") check_install && show_XMRay_tls_hash 0
+		"hash") check_install 0 && show_XMRay_tls_hash 0
         ;;
-		"generate") check_install && show_XMRay_tls_generate 0
+		"generate") check_install 0 && show_XMRay_tls_generate 0
         ;;
         *) show_usage
     esac
