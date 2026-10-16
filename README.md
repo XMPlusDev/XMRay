@@ -506,11 +506,11 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "type": "kcp",
     "settings": {
       "mtu": 1350,
-	  "tti": 20,
-	  "uplinkCapacity": 5,
+      "tti": 20,
+      "uplinkCapacity": 5,
       "downlinkCapacity": 20,
-	  "cwndMultiplier": 1,
-	  "maxSendingWindow": 1350
+      "cwndMultiplier": 1,
+      "maxSendingWindow": 1350
     }
   }
 }
@@ -548,11 +548,11 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "type": "masque",
     "settings": {
       "path": "",
-	  "remote_dns": [
+      "remote_dns": [
 		"1.1.1.1", 
 		"2606:4700:4700::1111"
-	  ],
-	  "xmux": {
+      ],
+      "xmux": {
         "maxConcurrency": "16-32",
         "maxConnections": "",
         "cMaxReuseTimes": "0",
