@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
@@ -18,7 +20,7 @@ import (
 	"github.com/xmplusdev/xmray/helper/cert"
 )
 
-func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.InboundHandlerConfig, error) {
+func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher func(string, any) error) (*core.InboundHandlerConfig, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is nil")
 	}
@@ -255,7 +257,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 
 	if nodeInfo.SecurityType == "tls" && nodeInfo.TlsSettings != nil && nodeInfo.TlsSettings.CertMode != "none" {
 		streamSetting.Security = "tls"
-		certFile, keyFile, err := getCertFile(config.CertConfig, nodeInfo.TlsSettings)
+		certFile, keyFile, err := getCertFile(config.CertConfig, nodeInfo.TlsSettings, pusher)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +315,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	return inboundDetourConfig.Build()
 }
 
-func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings) (certFile string, keyFile string, err error) {
+func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings, pusher func(string, any) error) (certFile string, keyFile string, err error) {
 	if certConfig == nil {
 		return "", "", fmt.Errorf("certConfig is nil")
 	}
@@ -350,6 +352,32 @@ func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings) (cer
 			return "", "", err
 		}
 		return lego.HTTPCert(tlsSettings.CertMode, tlsSettings.CertDomainName, tlsSettings.CertEmail)
+	case "self-signed":
+		pathBase := filepath.Join("/etc/XMRay", tlsSettings.ServerName)
+		generatedCert, err := cert.GenerateTLSCert(cert.CertOptions{
+			Domains:      []string{tlsSettings.CertDomainName},
+			CommonName:   tlsSettings.ServerName,
+			Organization: "XMPlus",
+			IsCA:         false,
+			Expire:       3600 * 24 * time.Hour,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		if err := generatedCert.Save(pathBase); err != nil {
+			return "", "", err
+		}
+		
+		if pusher != nil {
+			hash, hErr := cert.CertHashFromSelfSigned(generatedCert)
+			if hErr == nil {
+				_ = pusher("cert_hashes", map[string]any{
+					"core":           "xray",
+					"pinnedPeerCertSha256":    hash,
+				})
+			}			
+		}
+		return pathBase + ".crt", pathBase + ".key", nil
 	default:
 		return "", "", fmt.Errorf("unsupported certmode: %s", tlsSettings.CertMode)
 	}

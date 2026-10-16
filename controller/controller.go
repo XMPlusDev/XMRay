@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"log"
 	"reflect"
 	"time"
@@ -124,7 +125,7 @@ func (c *Controller) Start() error {
 		return err
 	}
 
-	if err = c.nodeManager.AddTag(c.nodeInfo, c.Tag, c.config); err != nil {
+	if err = c.nodeManager.AddTag(c.nodeInfo, c.Tag, c.config, c.nodePusher()); err != nil {
 		log.Panic(err)
 		return err
 	}
@@ -164,6 +165,11 @@ func (c *Controller) Start() error {
 
 	if c.nodeInfo.SecurityType == "tls" && c.nodeInfo.TlsSettings != nil && c.nodeInfo.TlsSettings.CertMode != "none" {
 		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "cert_renew", c.currentPollInterval*60, c.certMonitor))
+	}
+
+	if c.nodeInfo.SecurityType == "tls" && c.nodeInfo.TlsSettings.CertMode == "self-signed" {
+		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "cert_self_signed",
+			24*time.Hour, c.selfSignedCertMonitor))
 	}
 
 	go c.webhookTriggerLoop(c.currentPollInterval)
@@ -337,7 +343,7 @@ func (c *Controller) apiMonitor() (err error) {
 			c.Relay = true
 		}
 
-		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
+		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config, c.nodePusher()); err != nil {
 			log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
 			return fmt.Errorf("Controller APIMonitor AddInboundTag: %w", err)
 		}
@@ -575,4 +581,43 @@ func (c *Controller) nodePusher() func(string, any) error {
 
 func (c *Controller) buildRNodeTag() string {
 	return fmt.Sprintf("Relay_%s_%d_%d", c.relaynodeInfo.NodeType, c.relaynodeInfo.ListeningPort, c.relaynodeInfo.NodeID)
+}
+
+// selfSignedCertMonitor generates a self-signed certificate and pushes its
+// hashes to the panel via Reverb. It runs as its own scheduled task rather
+// than being mixed into certMonitor's ACME/Lego flow.
+func (c *Controller) selfSignedCertMonitor() error {
+	if c.nodeInfo.TlsSettings == nil {
+		return nil
+	}
+	if c.nodeInfo.TlsSettings.CertMode != "self-signed" {
+		return nil
+	}
+
+	pathBase := filepath.Join("/etc/XMRay", c.nodeInfo.TlsSettings.ServerName)
+	generatedCert, err := cert.GenerateTLSCert(cert.CertOptions{
+		Domains:      []string{c.nodeInfo.TlsSettings.CertDomainName},
+		CommonName:   c.nodeInfo.TlsSettings.ServerName,
+		Organization: "XMPlus",
+		IsCA:         false,
+		Expire:       3600 * 24 * time.Hour,
+	})
+	if err != nil {
+		return fmt.Errorf("self-signed cert generate: %w", err)
+	}
+	if err := generatedCert.Save(pathBase); err != nil {
+		return fmt.Errorf("self-signed cert save: %w", err)
+	}
+
+	if pusher := c.nodePusher(); pusher != nil {
+		hash, hErr := cert.CertHashFromSelfSigned(generatedCert)
+		if hErr == nil {
+			_ = pusher("cert_hashes", map[string]any{
+				"core":           "xray",
+				"pinnedPeerCertSha256":    hash,
+			})
+		}			
+	}
+	
+	return nil
 }

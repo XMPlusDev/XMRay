@@ -63,8 +63,8 @@ func (m *Manager) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 	return m.dispatcher.GetOnlineIPs(tag)
 }
 
-func (m *Manager) AddTag(nodeInfo *api.NodeInfo, tag string, config *Config) error {
-	inboundConfig, err := InboundBuilder(config, nodeInfo, tag)
+func (m *Manager) AddTag(nodeInfo *api.NodeInfo, tag string, config *Config, pusher func(string, any) error) error {
+	inboundConfig, err := InboundBuilder(config, nodeInfo, tag, pusher)
 	if err != nil {
 		return fmt.Errorf("failed to build inbound config: %w", err)
 	}
