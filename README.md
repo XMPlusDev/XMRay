@@ -549,8 +549,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "settings": {
       "path": "",
       "remote_dns": [
-		"1.1.1.1", 
-		"2606:4700:4700::1111"
+        "1.1.1.1", 
+        "2606:4700:4700::1111"
       ],
       "xmux": {
         "maxConcurrency": "16-32",
