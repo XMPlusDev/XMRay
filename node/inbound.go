@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,6 +21,8 @@ import (
 	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/helper/cert"
 )
+
+var safeCertName = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$`)
 
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher func(string, any) error) (*core.InboundHandlerConfig, error) {
 	if config == nil {
@@ -353,9 +357,16 @@ func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings, push
 		}
 		return lego.HTTPCert(tlsSettings.CertMode, tlsSettings.CertDomainName, tlsSettings.CertEmail)
 	case "self-signed":
+		if !safeCertName.MatchString(tlsSettings.ServerName) {
+			return "", "", fmt.Errorf("invalid server name %q for self-signed certificate", tlsSettings.ServerName)
+		}
 		pathBase := filepath.Join("/etc/XMRay", tlsSettings.ServerName)
+		domain := tlsSettings.CertDomainName
+		if domain == "" {
+			domain = tlsSettings.ServerName
+		}
 		generatedCert, err := cert.GenerateTLSCert(cert.CertOptions{
-			Domains:      []string{tlsSettings.CertDomainName},
+			Domains:      []string{domain},
 			CommonName:   tlsSettings.ServerName,
 			Organization: "XMPlus",
 			IsCA:         false,
@@ -369,13 +380,15 @@ func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings, push
 		}
 		
 		if pusher != nil {
-			hash, hErr := cert.CertHashFromSelfSigned(generatedCert)
-			if hErr == nil {
-				_ = pusher("cert_hashes", map[string]any{
-					"core":           "xray",
-					"pinnedPeerCertSha256":    hash,
-				})
-			}			
+			infos, hErr := cert.HashCertsFile(pathBase + ".crt")
+			if hErr != nil || len(infos) == 0 {
+				log.Printf("self-signed cert hash for %s unavailable: %v", pathBase, hErr)
+			} else if pErr := pusher("cert_hashes", map[string]any{
+				"core":                 "xray",
+				"pinnedPeerCertSha256": infos[0].SHA256, 
+			}); pErr != nil {
+				log.Printf("cert_hashes push failed: %v", pErr)
+			}		
 		}
 		return pathBase + ".crt", pathBase + ".key", nil
 	default:

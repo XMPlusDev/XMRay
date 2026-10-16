@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"log"
 	"reflect"
+	"regexp"
 	"time"
 
 	"github.com/xtls/xray-core/core"
@@ -20,6 +21,8 @@ import (
 )
 
 const serverStatusReportInterval = 5 * time.Second
+
+var safeCertName = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$`)
 
 type Controller struct {
 	server     *core.Instance
@@ -574,6 +577,7 @@ func (c *Controller) nodePusher() func(string, any) error {
 	return func(event string, data any) error {
 		return push(event, map[string]any{
 			"node_id": nodeID,
+			"server_id": c.config.ApiConfig.ServerID,
 			"data":    data,
 		})
 	}
@@ -593,10 +597,16 @@ func (c *Controller) selfSignedCertMonitor() error {
 	if c.nodeInfo.TlsSettings.CertMode != "self-signed" {
 		return nil
 	}
-
+	if !safeCertName.MatchString(c.nodeInfo.TlsSettings.ServerName) {
+		return nil
+	}
 	pathBase := filepath.Join("/etc/XMRay", c.nodeInfo.TlsSettings.ServerName)
+	domain := c.nodeInfo.TlsSettings.CertDomainName
+	if domain == "" {
+		domain = c.nodeInfo.TlsSettings.ServerName
+	}
 	generatedCert, err := cert.GenerateTLSCert(cert.CertOptions{
-		Domains:      []string{c.nodeInfo.TlsSettings.CertDomainName},
+		Domains:      []string{domain},
 		CommonName:   c.nodeInfo.TlsSettings.ServerName,
 		Organization: "XMPlus",
 		IsCA:         false,
@@ -608,14 +618,15 @@ func (c *Controller) selfSignedCertMonitor() error {
 	if err := generatedCert.Save(pathBase); err != nil {
 		return fmt.Errorf("self-signed cert save: %w", err)
 	}
-
 	if pusher := c.nodePusher(); pusher != nil {
-		hash, hErr := cert.CertHashFromSelfSigned(generatedCert)
-		if hErr == nil {
-			_ = pusher("cert_hashes", map[string]any{
-				"core":           "xray",
-				"pinnedPeerCertSha256":    hash,
-			})
+		infos, hErr := cert.HashCertsFile(pathBase + ".crt")
+		if hErr != nil || len(infos) == 0 {
+			log.Printf("self-signed cert hash for %s unavailable: %v", pathBase, hErr)
+		} else if pErr := pusher("cert_hashes", map[string]any{
+			"core":                 "xray",
+			"pinnedPeerCertSha256": infos[0].SHA256,
+		}); pErr != nil {
+			log.Printf("cert_hashes push failed: %v", pErr)
 		}			
 	}
 	

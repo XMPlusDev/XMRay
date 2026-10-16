@@ -1,6 +1,11 @@
 package cert
 
 import (
+	"errors"
+	"io/fs"
+	"log"
+	"sync"
+    "crypto/tls"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -10,11 +15,15 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
+
+var saveMu sync.Mutex
 
 // CertOptions configures GenerateTLSCert (mirrors the flags of XMBox's
 // `tls generate` command).
@@ -57,82 +66,124 @@ func (c *GeneratedCert) JSON() ([]byte, error) {
 	return b, nil
 }
 
-// CertHashFromSelfSigned returns the xray-core cert hash (SHA-256 of the
-// certificate's ASN.1 DER bytes) for a generated self-signed certificate.
-// This mirrors xray-core's transport/internet/t
-func CertHashFromSelfSigned(gc *GeneratedCert) ([]byte, error) {
-    parsed, err := x509.ParseCertificate(gc.Certificate)
-    if err != nil {
-        return nil, fmt.Errorf("parse certificate: %w", err)
-    }
-    return CertHash(parsed), nil
+// Hashes returns the certificate SHA-256 pin values for this generated
+// certificate, formatted for sing-box TLS pinning:
+//
+//   - CertificateB64 -> certificate_sha256 / client_certificate_sha256
+//   - PublicKeyB64   -> certificate_public_key_sha256 / client_certificate_public_key_sha256
+func (c *GeneratedCert) Hashes() (CertHashes, error) {
+	parsed, err := x509.ParseCertificate(c.Certificate)
+	if err != nil {
+		return CertHashes{}, fmt.Errorf("parse certificate: %w", err)
+	}
+	return CertHashesOf(parsed)
 }
 
 // Save checks if the certificate already exists and is not expired.
 // If the existing certificate is still valid, it returns nil without overwriting.
 // Otherwise, it writes the certificate to <pathBase>.crt and the key to <pathBase>.key
 // (the `tls generate -file` behaviour). It creates parent directories if needed.
+
 func (c *GeneratedCert) Save(pathBase string) error {
-	// Check if an existing certificate is present and still valid
-	if err := c.checkAndReuse(pathBase); err == nil {
+	saveMu.Lock()
+	defer saveMu.Unlock()
+
+	reuseErr := c.checkAndReuse(pathBase)
+	if reuseErr == nil {
 		return nil
+	}
+	if !errors.Is(reuseErr, fs.ErrNotExist) { // first run is not worth a warning
+		log.Printf("self-signed certificate %s regenerated: %v (clients pinning the old hash must refresh)", pathBase, reuseErr)
 	}
 
 	certPEM, keyPEM := c.ToPEM()
 	if err := os.MkdirAll(filepath.Dir(pathBase), 0o755); err != nil {
-		return fmt.Errorf("XMBox: create certificate directory: %w", err)
+		return fmt.Errorf("create certificate directory: %w", err)
 	}
-	if err := os.WriteFile(pathBase+".crt", certPEM, 0o644); err != nil {
-		return fmt.Errorf("XMBox: write certificate: %w", err)
+	// key first: whatever reloads on the .crt change then finds the matching key
+	if err := writeFileAtomic(pathBase+".key", keyPEM, 0o600); err != nil {
+		return fmt.Errorf("write private key: %w", err)
 	}
-	if err := os.WriteFile(pathBase+".key", keyPEM, 0o600); err != nil {
-		return fmt.Errorf("XMBox: write private key: %w", err)
+	if err := writeFileAtomic(pathBase+".crt", certPEM, 0o644); err != nil {
+		return fmt.Errorf("write certificate: %w", err)
 	}
 	return nil
+}
+
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // harmless after a successful rename
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
 
 // checkAndReuse checks if an existing certificate at pathBase is still valid.
 // If it is, it reads the existing key and returns nil. If it's expired or missing,
 // it returns an error to trigger a new generation.
 func (c *GeneratedCert) checkAndReuse(pathBase string) error {
-	certPath := pathBase + ".crt"
-	keyPath := pathBase + ".key"
-
-	// Check if certificate exists
-	if _, err := os.Stat(certPath); os.IsNotExist(err) {
-		return fmt.Errorf("not found")
-	}
-
-	// Read and parse the existing certificate
-	certPEM, err := os.ReadFile(certPath)
+	fresh, err := x509.ParseCertificate(c.Certificate) // carries the SANs we want now
 	if err != nil {
-		return fmt.Errorf("read certificate: %w", err)
+		return fmt.Errorf("parse new certificate: %w", err)
 	}
 
-	block, _ := pem.Decode(certPEM)
-	if block == nil || block.Type != "CERTIFICATE" {
+	certPEM, err := os.ReadFile(pathBase + ".crt")
+	if err != nil {
+		return err
+	}
+	keyPEM, err := os.ReadFile(pathBase + ".key")
+	if err != nil {
+		return err
+	}
+	certBlock, _ := pem.Decode(certPEM)
+	if certBlock == nil || certBlock.Type != "CERTIFICATE" {
 		return fmt.Errorf("invalid certificate format")
 	}
-
-	existingCert, err := x509.ParseCertificate(block.Bytes)
+	keyBlock, _ := pem.Decode(keyPEM)
+	if keyBlock == nil {
+		return fmt.Errorf("invalid key format")
+	}
+	existing, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
 		return fmt.Errorf("parse certificate: %w", err)
 	}
 
-	// Check if expired
-	if time.Now().After(existingCert.NotAfter) {
-		return fmt.Errorf("expired")
+	// renew a little before expiry (30 days, or 10% of lifetime for short-lived certs)
+	margin := min(30*24*time.Hour, fresh.NotAfter.Sub(fresh.NotBefore)/10)
+	if time.Now().Add(margin).After(existing.NotAfter) {
+		return fmt.Errorf("expiring")
 	}
 
-	// Certificate is still valid - read the existing key
-	keyPEM, err := os.ReadFile(keyPath)
-	if err != nil {
-		return fmt.Errorf("read key: %w", err)
+	// the requested parameters must still match
+	a, b := slices.Clone(existing.DNSNames), slices.Clone(fresh.DNSNames)
+	slices.Sort(a)
+	slices.Sort(b)
+	if existing.IsCA != fresh.IsCA ||
+		existing.Subject.CommonName != fresh.Subject.CommonName ||
+		!slices.Equal(a, b) {
+		return fmt.Errorf("certificate parameters changed")
 	}
 
-	// Update the GeneratedCert with the existing values
-	c.Certificate = block.Bytes
-	c.PrivateKey = keyPEM
+	// the key on disk must belong to this certificate
+	if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
+		return fmt.Errorf("key does not match certificate: %w", err)
+	}
+
+	c.Certificate = certBlock.Bytes
+	c.PrivateKey = keyBlock.Bytes // DER, like the rest of this type
 	return nil
 }
 
@@ -172,6 +223,13 @@ func GenerateTLSCert(opts CertOptions) (*GeneratedCert, error) {
 	}
 	if len(opts.Domains) > 0 {
 		template.DNSNames = opts.Domains
+		for _, d := range opts.Domains {
+			if ip := net.ParseIP(d); ip != nil {
+				template.IPAddresses = append(template.IPAddresses, ip)
+			} else if d != "" {
+				template.DNSNames = append(template.DNSNames, d)
+			}
+		}
 	}
 	if opts.CommonName != "" {
 		template.Subject = pkix.Name{CommonName: opts.CommonName}

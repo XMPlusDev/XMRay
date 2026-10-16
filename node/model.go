@@ -1,10 +1,12 @@
 package node
 
 import (
+	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/helper/cert"
 )
 
 type Config struct {
+	ApiConfig            *api.Config      `mapstructure:"ApiConfig"`
 	CertConfig           *cert.CertConfig `mapstructure:"CertConfig"`
 	DNSConfig            *DNSConfig       `mapstructure:"DNSConfig"`
 	DisableServerMonitor bool             `mapstructure:"DisableServerMonitor"`

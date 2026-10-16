@@ -93,6 +93,7 @@ func getDefaultControllerConfig() *node.Config {
 
 func buildControllerConfig(cfg *Config) *node.Config {
 	c := getDefaultControllerConfig()
+	c.ApiConfig = cfg.ApiConfig
 	c.CertConfig = cfg.CertConfig
 	if cfg.InstanceConfig != nil && cfg.InstanceConfig.DNSConfig != nil {
 		c.DNSConfig = &node.DNSConfig{
