@@ -215,8 +215,7 @@ Fallbacks redirect unrecognised or non-matching connections to another local ser
       "acceptProxyProtocol": false,
       "host": "tld.dev",
       "path": "/",
-      "heartbeat": 60,
-      "custom_host": "tld.dev"
+      "heartbeat": 60
     }
   }
 }
@@ -263,8 +262,7 @@ Fallbacks redirect unrecognised or non-matching connections to another local ser
     "settings": {
       "acceptProxyProtocol": false,
       "host": "tld.dev",
-      "path": "/",
-      "custom_host": "tld.dev"
+      "path": "/"
     }
   }
 }
@@ -536,6 +534,36 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 }
 ```
 
+
+#### MASQUE
+```json
+{
+  "masque_address": ["10.14.0.1/24", "fd14::1/64"],
+  "masque_mtu": 1280,
+  "sniffing": true,
+  "listeningIP": "0.0.0.0",
+  "listeningPort": "443-443",
+  "sendThroughIP": "0.0.0.0",
+  "transportProtocol": {
+    "type": "masque",
+    "settings": {
+      "path": "",
+	  "remote_dns": [
+		"1.1.1.1", 
+		"2606:4700:4700::1111"
+	  ],
+	  "xmux": {
+        "maxConcurrency": "16-32",
+        "maxConnections": "",
+        "cMaxReuseTimes": "0",
+        "hMaxRequestTimes": "600-900",
+        "hMaxReusableSecs": "1800-3000",
+        "hKeepAlivePeriod": 0
+      }
+    }
+  }
+}
+```
 ---
 
 ### Mask Settings

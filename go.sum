@@ -1713,8 +1713,8 @@ github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gi
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xtls/reality v0.0.0-20261014101318-83f621788ca8 h1:RjLnVvlzK4q6zWaSBPNRGsrgx2fbJDeUWffjw574uzs=
 github.com/xtls/reality v0.0.0-20261014101318-83f621788ca8/go.mod h1:ptlSkJ8k/7IDauNH0SA96JPOo+nYGLTv2Y3UMpwvAsY=
-github.com/xtls/xray-core v1.260327.1-0.20261014110545-0888beb38a9b h1:Cr7QshnKi8ksMrXDXl8a/moenqeoSAVZcwCmhZ5osos=
-github.com/xtls/xray-core v1.260327.1-0.20261014110545-0888beb38a9b/go.mod h1:/dC/ghHlSM3FpmPPcABHg11MN7OE3ihMNCtpPzfaocg=
+github.com/xtls/xray-core v1.260327.1-0.20261015233814-8703fdb10147 h1:zHK8JQGcpclyIyMyIEGUr4lvxoFyuBiZm/Z2bnK1sho=
+github.com/xtls/xray-core v1.260327.1-0.20261015233814-8703fdb10147/go.mod h1:K9/USkul3qakG3i/i53FcMEmSBzc8YScZMa5vPZZtOg=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yandex-cloud/go-genproto v0.120.0 h1:WDiXtNLaxpUkHOr+jE+V1SCtXf+zTptYM6D5p3hb/GA=

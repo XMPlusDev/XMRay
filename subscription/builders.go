@@ -11,6 +11,7 @@ import (
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/serial"
 	"github.com/xtls/xray-core/infra/conf"
+	"github.com/xtls/xray-core/proxy/masque"
 	hysteria "github.com/xtls/xray-core/proxy/hysteria/account"
 	"github.com/xtls/xray-core/proxy/shadowsocks"
 	"github.com/xtls/xray-core/proxy/shadowsocks_2022"
@@ -101,6 +102,20 @@ func BuildHysteriaUsers(subscriptionInfo *[]api.SubscriptionInfo, tag string) []
 			Email: buildUserTag(tag, &subscription),
 			Account: serial.ToTypedMessage(&hysteria.Account{
 				Auth: subscription.UUID,
+			}),
+		})
+	}
+	return users
+}
+
+func BuildMasqueUsers(subscriptionInfo *[]api.SubscriptionInfo, tag string) []*protocol.User {
+	users := make([]*protocol.User, 0, len(*subscriptionInfo))
+	for _, subscription := range *subscriptionInfo {
+		users = append(users, &protocol.User{
+			Level: 0,
+			Email: buildUserTag(tag, &subscription),
+			Account: serial.ToTypedMessage(&masque.Account{
+				Password: subscription.UUID,
 			}),
 		})
 	}

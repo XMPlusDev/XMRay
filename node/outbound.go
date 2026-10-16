@@ -147,7 +147,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			}},
 		}
 
-	case "hysteria":
+	case "hysteria", "hysteria2":
 		outboundDetourConfig.Protocol = "hysteria"
 		proxySetting = struct {
 			*conf.HysteriaClientConfig
@@ -158,7 +158,19 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 				Version: nodeInfo.HysteriaSettings.Version,
 			},
 		}
-
+	
+	case "masque":
+		outboundDetourConfig.Protocol = "masque"
+		proxySetting = struct {
+			*conf.MasqueClientConfig
+		}{
+			&conf.MasqueClientConfig{
+				Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
+				Port:    uint16(nodeInfo.Port),
+				RemoteDNS: nodeInfo.MasqueSettings.RemoteDNS,
+			},
+		}
+		
 	default:
 		return nil, fmt.Errorf("unsupported relay node type: %s", nodeInfo.NodeType)
 	}
@@ -186,7 +198,53 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			hysteriaSettings.Auth = subscription.Passwd
 		}
 		streamSetting.HysteriaSettings = hysteriaSettings
-
+	
+	case "masque":
+		masqueSettings := &conf.MasqueConfig{
+			User: fmt.Sprintf("%s_%s", tag, subscription.Email),
+			Pass: subscription.UUID,
+		}
+			
+		if m := nodeInfo.MasqueSettings; m != nil {	
+			if m.Path != "" {
+				masqueSettings.Path = m.Path
+			}
+			
+			if m.Xmux != (api.XmuxConfig{}) {
+				maxConcurrency, err := parseInt32Range(m.Xmux.MaxConcurrency, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.MaxConcurrency: %w", err)
+				}
+				maxConnections, err := parseInt32Range(m.Xmux.MaxConnections, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.MaxConnections: %w", err)
+				}
+				cMaxReuseTimes, err := parseInt32Range(m.Xmux.CMaxReuseTimes, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.CMaxReuseTimes: %w", err)
+				}
+				hMaxRequestTimes, err := parseInt32Range(m.Xmux.HMaxRequestTimes, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.HMaxRequestTimes: %w", err)
+				}
+				hMaxReusableSecs, err := parseInt32Range(m.Xmux.HMaxReusableSecs, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.HMaxReusableSecs: %w", err)
+				}
+				
+				masqueSettings.Xmux = conf.XmuxConfig{
+					MaxConcurrency:   maxConcurrency,
+					MaxConnections:   maxConnections,
+					CMaxReuseTimes:   cMaxReuseTimes,
+					HMaxRequestTimes: hMaxRequestTimes,
+					HMaxReusableSecs: hMaxReusableSecs,
+					HKeepAlivePeriod: m.Xmux.HKeepAlivePeriod,
+				}
+			}
+		}
+		
+		streamSetting.MASQUESettings = masqueSettings
+		
 	case "xhttp", "splithttp":
 		xhttpSettings := &conf.SplitHTTPConfig{}
 		if nodeInfo.XhttpSettings != nil {

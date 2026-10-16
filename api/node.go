@@ -135,10 +135,21 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 		nodeInfo.Cipher = transportData.Get("cipher").MustString()
 		nodeInfo.ServerKey = s.ServerKey
 	}
+	
+	if nodeInfo.NodeType == "masque" {
+		if addressData, addressExists := transportData.CheckGet("masque_address"); addressExists {
+			if v, err := addressData.Get("masque_address").StringArray(); err == nil {
+				nodeInfo.MasqueAddress = v
+			}
+		}
+		if _, mtuExists := transportData.CheckGet("masque_mtu"); mtuExists {
+			nodeInfo.MasqueMTU = uint32(transportData.Get("masque_mtu").MustInt())
+		}
+	}
 
 	if err := parseNetworkSettings(transportData, &nodeInfo.NetworkType, &nodeInfo.HysteriaSettings,
 		&nodeInfo.XhttpSettings, &nodeInfo.RawSettings, &nodeInfo.KcpSettings,
-		&nodeInfo.GrpcSettings, &nodeInfo.WsSettings, &nodeInfo.HttpSettings); err != nil {
+		&nodeInfo.GrpcSettings, &nodeInfo.WsSettings, &nodeInfo.HttpSettings, &nodeInfo.MasqueSettings); err != nil {
 		return nil, err
 	}
 
@@ -234,7 +245,7 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 
 	if err := parseNetworkSettings(transportData, &nodeInfo.NetworkType, &nodeInfo.HysteriaSettings,
 		&nodeInfo.XhttpSettings, &nodeInfo.RawSettings, &nodeInfo.KcpSettings,
-		&nodeInfo.GrpcSettings, &nodeInfo.WsSettings, &nodeInfo.HttpSettings); err != nil {
+		&nodeInfo.GrpcSettings, &nodeInfo.WsSettings, &nodeInfo.HttpSettings, &nodeInfo.MasqueSettings); err != nil {
 		return nil, err
 	}
 
@@ -311,6 +322,7 @@ func parseNetworkSettings(
 	grpc **GrpcSettings,
 	ws **WsSettings,
 	http **HttpSettings,
+	masque **MasqueSettings,
 ) error {
 	transport, ok := transportData.CheckGet("transportProtocol")
 	if !ok {
@@ -337,7 +349,30 @@ func parseNetworkSettings(
 		*hysteria = &HysteriaSettings{
 			Version: int32(transportSettings.Get("version").MustInt()),
 		}
-
+	case "masque":
+		m := &MasqueSettings{}
+		if xmuxData, ok := transportSettings.CheckGet("xmux"); ok {
+			m.Xmux = XmuxConfig{
+				MaxConcurrency:   xmuxData.Get("maxConcurrency").MustString(),
+				MaxConnections:   xmuxData.Get("maxConnections").MustString(),
+				CMaxReuseTimes:   xmuxData.Get("cMaxReuseTimes").MustString(),
+				HMaxRequestTimes: xmuxData.Get("hMaxRequestTimes").MustString(),
+				HMaxReusableSecs: xmuxData.Get("hMaxReusableSecs").MustString(),
+				HKeepAlivePeriod: int64(xmuxData.Get("hKeepAlivePeriod").MustInt()),
+			}
+		}
+		if remoteDNSData, ok := transportSettings.CheckGet("remote_dns"); ok {
+			if v, err := remoteDNSData.Get("remote_dns").StringArray(); err == nil {
+				m.RemoteDNS = v
+			}
+		}
+		if pathData, ok := transportSettings.CheckGet("path"); ok {
+			if v, err := pathData.Get("path").String(); err == nil {
+				m.Path = v
+			}
+		}
+		
+		*masque = m
 	case "xhttp":
 		x := &XhttpSettings{
 			Host: transportSettings.Get("host").MustString(),

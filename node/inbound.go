@@ -105,12 +105,23 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		shadowsocksSetting.NetworkList = &conf.NetworkList{"tcp", "udp"}
 		proxySetting = shadowsocksSetting
 
-	case "hysteria":
+	case "hysteria", "hysteria2":
 		inboundDetourConfig.Protocol = "hysteria"
 		proxySetting = &conf.HysteriaServerConfig{
 			Version: nodeInfo.HysteriaSettings.Version,
 		}
-
+	
+	case "masque":
+		inboundDetourConfig.Protocol = "masque"
+		mtu := nodeInfo.MasqueMTU
+		if mtu != 0 && (mtu < 1280 || mtu > 65535) {
+			return nil, fmt.Errorf("invalid MASQUE MTU %d: use 0 (default) or a value between 1280 and 65535", mtu)
+		}
+		proxySetting = &conf.MasqueServerConfig{
+			Address: nodeInfo.MasqueAddress,
+			MTU: mtu,
+		}
+	
 	default:
 		return nil, fmt.Errorf("unsupported node type: %v", nodeInfo.NodeType)
 	}
@@ -137,7 +148,16 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
 		}
 		streamSetting.HysteriaSettings = hysteriaSettings
-
+		
+	case "masque":
+		masqueSettings := &conf.MasqueConfig{}
+		if m := nodeInfo.MasqueSettings; m != nil {	
+			if m.Path != "" {
+				masqueSettings.Path = m.Path
+			}
+		}
+		streamSetting.MASQUESettings = masqueSettings
+		
 	case "xhttp", "splithttp":
 		if nodeInfo.XhttpSettings == nil {
 			return nil, fmt.Errorf("XhttpSettings is required for xhttp transport")

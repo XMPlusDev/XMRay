@@ -275,6 +275,12 @@ type HysteriaSettings struct {
 	Version int32
 }
 
+type MasqueSettings struct {
+	Path      string 
+	RemoteDNS []string
+	Xmux      XmuxConfig 
+}
+
 type FallbackConfig struct {
 	SNI              string `json:"sni"`
 	Alpn             string `json:"alpn"`
@@ -301,6 +307,8 @@ type NodeInfo struct {
 	Decryption       string
 	SecurityType     string
 	NetworkType      string
+	MasqueAddress    []string
+	MasqueMTU        uint32 
 	KcpSettings      *KcpSettings
 	GrpcSettings     *GrpcSettings
 	RawSettings      *RawSettings
@@ -314,6 +322,7 @@ type NodeInfo struct {
 	BlockingRules    *BlockingRules
 	MaskSettings     *MaskSettings
 	HysteriaSettings *HysteriaSettings
+	MasqueSettings   *MasqueSettings
 	FinalRules       []FinalRuleSettings
 	FallbackConfigs  []FallbackConfig
 }
@@ -342,6 +351,7 @@ type RelayNodeInfo struct {
 	TlsSettings      *TlsSettings
 	MaskSettings     *MaskSettings
 	HysteriaSettings *HysteriaSettings
+	MasqueSettings   *MasqueSettings
 	FinalRules       []FinalRuleSettings
 }
 

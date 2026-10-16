@@ -46,8 +46,10 @@ func (m *Manager) AddNewSubscription(subscriptionInfo *[]api.SubscriptionInfo, n
 		users = BuildTrojanUsers(subscriptionInfo, tag)
 	case "shadowsocks":
 		users = BuildShadowsocksUsers(subscriptionInfo, nodeInfo.Cipher, tag)
-	case "hysteria":
+	case "hysteria", "hysteria2":
 		users = BuildHysteriaUsers(subscriptionInfo, tag)
+	case "masque":
+		users = BuildMasqueUsers(subscriptionInfo, tag)	
 	default:
 		return fmt.Errorf("unsupported node type %s. Abort building user", nodeInfo.NodeType)
 	}
