@@ -573,9 +573,9 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 `maskSettings` is optional and applies transport-level obfuscation. All three fields (`tcp`, `udp`, `quicParams`) are optional and can be used independently or together.
 
 #### TCP mask types: `header-custom`, `fragment`, `sudoku`
-#### UDP mask types:  `mkcp-legacy`, `mkcp-original`, `mkcp-aes128gcm`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`
+#### UDP mask types:  `mkcp-legacy`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`,`udphop`
 
-> **`salamander` packetSize (Gecko mode):** add an optional `"packetSize": { "from": <min>, "to": <max> }` to the `salamander` settings (Hysteria v2.9.2+) to enable the Gecko obfuscator, which fragments packets into randomly-sized chunks within the given byte range to resist traffic analysis. Omit `packetSize` to use the classic Salamander obfuscator. This field must match exactly between server and client.
+> **`salamander` packetSize (Gecko mode):** add an optional `"packetSize": "<min>-<max>"` to the `salamander` settings (Hysteria v2.9.2+) to enable the Gecko obfuscator, which fragments packets into randomly-sized chunks within the given byte range to resist traffic analysis. Omit `packetSize` to use the classic Salamander obfuscator. This field must match exactly between server and client.
 
 ```json
 {
@@ -622,7 +622,7 @@ Choose names that blend in with real CDN traffic. Some suggestions:
       "disablePathMTUDiscovery": false,
       "maxIncomingStreams": 100,
 	  "brutalDisableLossCompensation": true,
-	  "DisableChromeParrot":true,
+	  "disableChromeParrot":true,
 	  "disableGSO": false,
 	  "disableStatelessReset": false
     }
@@ -842,7 +842,7 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
         "type": "salamander",
         "settings": {
           "password": "your-password-here",
-          "packetSize": { "from": 512, "to": 1200 }
+          "packetSize": "512- 1200"
         }
       }
     ]
