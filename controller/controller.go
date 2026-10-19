@@ -7,6 +7,7 @@ import (
 	"log"
 	"reflect"
 	"regexp"
+	"strings"
 	"time"
 	"os"
 
@@ -565,8 +566,16 @@ func (c *Controller) logPrefix() string {
 	return fmt.Sprintf("[%s] %s(XMRay NodeID=%d)", c.clientInfo.APIHost, c.nodeInfo.NodeType, c.nodeInfo.NodeID)
 }
 
+func sanitizePortForTag(port string) string {
+	parts := strings.Split(port, ",")
+	for i, p := range parts {
+		parts[i] = strings.TrimSpace(p)
+	}
+	return strings.Join(parts, "_")
+}
+
 func (c *Controller) buildNodeTag() string {
-	return fmt.Sprintf("%s_%s_%d", c.nodeInfo.NodeType, c.nodeInfo.ListeningPort, c.nodeInfo.NodeID)
+	return fmt.Sprintf("%s_%s_%d", c.nodeInfo.NodeType, sanitizePortForTag(c.nodeInfo.ListeningPort), c.nodeInfo.NodeID)
 }
 
 func (c *Controller) nodePusher() func(string, any) error {
@@ -588,9 +597,6 @@ func (c *Controller) buildRNodeTag() string {
 	return fmt.Sprintf("Relay_%s_%d_%d", c.relaynodeInfo.NodeType, c.relaynodeInfo.ListeningPort, c.relaynodeInfo.NodeID)
 }
 
-// selfSignedCertMonitor generates a self-signed certificate and pushes its
-// hashes to the panel via Reverb. It runs as its own scheduled task rather
-// than being mixed into certMonitor's ACME/Lego flow.
 func (c *Controller) selfSignedCertMonitor() error {
 	if c.nodeInfo.TlsSettings == nil {
 		return nil
