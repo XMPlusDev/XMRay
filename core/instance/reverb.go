@@ -154,7 +154,11 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 		apiKey = i.instanceConfig.ApiConfig.Key
 	}
 	if cfg.AppSecret != "" {
-		subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel, serverID, apiKey)
+		if i.panelType == "XMPlusGo" {
+			subData["auth"] = gosignChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel, serverID, apiKey)
+		}else{
+			subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel)
+		}
 	}
 	if i.instanceConfig.ApiConfig != nil {
 		subData["server_id"] = i.instanceConfig.ApiConfig.ServerID
@@ -313,7 +317,15 @@ func minDuration(a, b time.Duration) time.Duration {
 	return b
 }
 
-func signChannel(appKey, appSecret, socketID, channel string, serverID int, apiKey string) string {
+func signChannel(appKey, appSecret, socketID, channel string) string {
+	stringToSign := fmt.Sprintf("%s:%s:%d", socketID, channel)
+	mac := hmac.New(sha256.New, []byte(appSecret))
+	mac.Write([]byte(stringToSign))
+	sig := hex.EncodeToString(mac.Sum(nil))
+	return appKey + ":" + sig
+}
+
+func gosignChannel(appKey, appSecret, socketID, channel string, serverID int, apiKey string) string {
 	stringToSign := fmt.Sprintf("%s:%s:%d:%s", socketID, channel, serverID)
 	mac := hmac.New(sha256.New, []byte(appSecret + apiKey))
 	mac.Write([]byte(stringToSign))

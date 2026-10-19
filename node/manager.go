@@ -27,15 +27,17 @@ type Manager struct {
 	obm        outbound.Manager
 	router     *router.Router
 	dispatcher *dispatcher.LimitingDispatcher
+	client     api.API
 }
 
-func NewManager(server *core.Instance, d *dispatcher.LimitingDispatcher) *Manager {
+func NewManager(server *core.Instance, d *dispatcher.LimitingDispatcher, client api.API) *Manager {
 	return &Manager{
 		server:     server,
 		ibm:        server.GetFeature(inbound.ManagerType()).(inbound.Manager),
 		obm:        server.GetFeature(outbound.ManagerType()).(outbound.Manager),
 		router:     server.GetFeature(routing.RouterType()).(*router.Router),
 		dispatcher: d,
+		client:     client,
 	}
 }
 
@@ -64,7 +66,7 @@ func (m *Manager) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 }
 
 func (m *Manager) AddTag(nodeInfo *api.NodeInfo, tag string, config *Config, pusher func(string, any) error) error {
-	inboundConfig, err := InboundBuilder(config, nodeInfo, tag, pusher)
+	inboundConfig, err := InboundBuilder(config, nodeInfo, tag, pusher, m.client)
 	if err != nil {
 		return fmt.Errorf("failed to build inbound config: %w", err)
 	}

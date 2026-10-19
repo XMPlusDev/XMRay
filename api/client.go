@@ -27,6 +27,7 @@ type Client struct {
 type ClientInfo struct {
 	APIHost string
 	NodeID  int
+	ServerID  int
 	Key     string
 }
 
@@ -78,6 +79,7 @@ func (c *Client) Describe() ClientInfo {
 	return ClientInfo{
 		APIHost: c.APIHost,
 		NodeID:  c.NodeID,
+		ServerID: c.ServerID,
 		Key:     c.Key,
 	}
 }

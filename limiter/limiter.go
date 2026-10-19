@@ -137,6 +137,7 @@ func New(server *core.Instance, redisConfig *RedisConfig) *Limiter {
 			ReadTimeout:  timeout,
 			WriteTimeout: timeout,
 		})
+		log.Printf("[Limiter] Redis initialised at %s", redisConfig.Addr)
 	}
 	return l
 }

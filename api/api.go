@@ -7,6 +7,7 @@ type API interface {
 	ReportOnlineIPs(onlineIP *[]OnlineIP) (err error)
 	ReportTraffic(subscriptionTraffic *[]SubscriptionTraffic) (err error)
 	ReportServerStatus(status *ServerStatus) (err error)
+	ReportCertHash(data *CertHash) (err error)
 	GetServerNodes() (*ServerNodesResponse, error)
 	Describe() ClientInfo
 	Debug()

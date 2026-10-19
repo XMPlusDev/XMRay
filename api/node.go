@@ -36,11 +36,13 @@ func (c *Client) GetServerNodes() (*ServerNodesResponse, error) {
 
 	pollInterval := response.Get("poll_interval").MustInt()
 	version := response.Get("api_version").MustInt()
+	panelType := response.Get("panel_type").MustString()
 
 	return &ServerNodesResponse{
 		Nodes:        nodes,
 		PollInterval: pollInterval,
 		Version:      version,
+		PanelType:    panelType,
 	}, nil
 }
 
@@ -56,14 +58,26 @@ func (c *Client) ReportServerStatus(status *ServerStatus) error {
 	return err
 }
 
+func (c *Client) ReportCertHash(data *CertHash) error {
+	postData := &PostData{Key: c.Key, Data: data}
+	res, err := c.client.R().
+		SetBody(postData).
+		SetPathParam("nodeId", strconv.Itoa(c.NodeID)).
+		ForceContentType("application/json").
+		Post("/api/server/cert-hash/{nodeId}")
+
+	_, err = c.checkResponse(res, err)
+	return err
+}
+
 func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 	server := new(serverConfig)
 	res, err := c.client.R().
 		SetBody(map[string]string{"key": c.Key, "core": "xray"}).
 		ForceContentType("application/json").
-		SetPathParam("serverId", strconv.Itoa(c.NodeID)).
+		SetPathParam("nodeId", strconv.Itoa(c.NodeID)).
 		SetHeader("If-None-Match", c.eTags["server"]).
-		Post("/api/server/info/{serverId}")
+		Post("/api/server/info/{nodeId}")
 
 	if err != nil {
 		return nil, err

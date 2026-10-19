@@ -38,6 +38,7 @@ type Instance struct {
 	reverbOutbound   chan reverbOutbound
 	reverbMu         sync.Mutex
 	currentPusher    func(string, any) error
+	panelType        string
 	serverPoller      *scheduler.PeriodicTask
 	serverPollTrigger chan struct{}
 	serverStatusTask  *scheduler.PeriodicTask
@@ -226,7 +227,6 @@ func (i *Instance) Start() error {
 
 	pusher := i.PushEvent
 
-	log.Printf("[Reverb] config: %d entries: %+v", len(i.instanceConfig.ReverbConfig), i.instanceConfig.ReverbConfig)
 	for _, cfg := range i.instanceConfig.ReverbConfig {
 		if cfg == nil || !cfg.Enable {
 			log.Printf("[Reverb] skipping entry: %+v", cfg)
@@ -249,6 +249,8 @@ func (i *Instance) Start() error {
 			return fmt.Errorf("failed to fetch server nodes: %s", err)
 		}
 	
+		i.panelType = resp.PanelType
+
 		if resp.Version < 2606120 {
 			return fmt.Errorf("Backend does not support panel api version before v2606120. Update your panel.  Your panel api version is: %d", resp.Version)
 		}

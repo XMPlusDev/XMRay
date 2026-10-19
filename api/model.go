@@ -26,6 +26,7 @@ type ServerNodesResponse struct {
 	Nodes        []*ServerNode `json:"nodes"`
 	PollInterval int           `json:"poll_interval"`
 	Version      int           `json:"api_version"`
+	PanelType    string         `json:"panel_type"`
 }
 
 type Response struct {
@@ -394,4 +395,9 @@ type ServerStatus struct {
 type ServerStatusPayload struct {
 	ServerID int           `json:"server_id"`
 	Data     *ServerStatus `json:"data"`
+}
+
+type CertHash struct {
+	Core                 string `json:"core"`
+	PinnedPeerCertSha256 string `json:"pinnedPeerCertSha256"`
 }

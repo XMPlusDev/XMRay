@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"time"
+	"os"
 
 	"github.com/xtls/xray-core/core"
 
@@ -61,7 +62,7 @@ func New(server *core.Instance, api api.API, config *node.Config, d *dispatcher.
 		dispatcher:              d,
 		pusher:                  pusher,
 		taskManager:             scheduler.NewManager(),
-		nodeManager:             node.NewManager(server, d),
+		nodeManager:             node.NewManager(server, d, api),
 		subManager:              subscription.NewManager(server, api, d),
 		nodeSyncTrigger:         make(chan struct{}, 1),
 		subscriptionSyncTrigger: make(chan struct{}, 1),
@@ -600,7 +601,11 @@ func (c *Controller) selfSignedCertMonitor() error {
 	if !safeCertName.MatchString(c.nodeInfo.TlsSettings.ServerName) {
 		return nil
 	}
-	pathBase := filepath.Join("/etc/XMRay", c.nodeInfo.TlsSettings.ServerName)
+	assetDir := os.Getenv("XRAY_LOCATION_ASSET")
+	if assetDir == "" {
+		assetDir = "/etc/XMRay"
+	}
+	pathBase := filepath.Join(assetDir, c.nodeInfo.TlsSettings.ServerName)
 	domain := c.nodeInfo.TlsSettings.CertDomainName
 	if domain == "" {
 		domain = c.nodeInfo.TlsSettings.ServerName
@@ -623,10 +628,19 @@ func (c *Controller) selfSignedCertMonitor() error {
 		if hErr != nil || len(infos) == 0 {
 			log.Printf("self-signed cert hash for %s unavailable: %v", pathBase, hErr)
 		} else if pErr := pusher("cert_hashes", map[string]any{
-			"core":                 "xray",
+			"core": "xray",
 			"pinnedPeerCertSha256": infos[0].SHA256,
 		}); pErr != nil {
 			log.Printf("cert_hashes push failed: %v", pErr)
+			if c.client != nil {
+				data := &api.CertHash{
+					Core: "xray",
+					PinnedPeerCertSha256: infos[0].SHA256,
+				}
+				if rErr := c.client.ReportCertHash(data); rErr != nil {
+					log.Printf("cert_hashes ReportCertHash failed: %v", rErr)
+				}
+			}
 		}			
 	}
 	
