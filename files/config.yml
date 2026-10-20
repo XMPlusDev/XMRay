@@ -10,7 +10,7 @@ CertConfig:                                       # Cert config for when cert mo
       CertEnv:
         CLOUDFLARE_DNS_API_TOKEN: x               # Cert Provider environment variables.
 RedisConfig:
-  Enable: false                                   # Enable the global ip limit
+  Enable: true                                    # Enable the global ip limit
   Network: tcp                                    # Redis protocol, tcp or unix
   Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path (use your panel api address and redis port)
   Username:                                       # Redis username leave empty
@@ -18,7 +18,7 @@ RedisConfig:
   DB: 0                                           # Redis DB
   Timeout: 10                                     # Timeout for redis request
 ReverbConfig:
-  - Enable: false                                 # Enable websocket to trigger real-time subscription and node updates from panel
+  - Enable: true                                  # Enable websocket to trigger real-time subscription and node updates from panel
     Host: "api.xyz.com:443"                       # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMPlusPanel/.env 
     AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMPlusPanel/.env
     AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMPlusPanel/.env

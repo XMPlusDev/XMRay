@@ -8,7 +8,7 @@ cd /etc/XMRay
 
 ### Onclick XMRay backend Install
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/latest/install.sh)
 ```
 
 ### /etc/XMRay/config.yml
@@ -25,7 +25,7 @@ CertConfig:                                       # Cert config for when cert mo
       CertEnv:
         CLOUDFLARE_DNS_API_TOKEN: x               # Cert Provider environment variables.
 RedisConfig:
-  Enable: false                                   # Enable the global ip limit
+  Enable: true                                    # Enable the global ip limit
   Network: tcp                                    # Redis protocol, tcp or unix
   Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path (use your panel api address and redis port)
   Username:                                       # Redis username leave empty
@@ -33,7 +33,7 @@ RedisConfig:
   DB: 0                                           # Redis DB
   Timeout: 10                                     # Timeout for redis request
 ReverbConfig:
-  - Enable: false                                 # Enable websocket to trigger real-time subscription and node updates from panel
+  - Enable: true                                  # Enable websocket to trigger real-time subscription and node updates from panel
     Host: "api.xyz.com:443"                       # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMPlusPanel/.env 
     AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMPlusPanel/.env
     AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMPlusPanel/.env
@@ -991,8 +991,8 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 | `XMRay mldsa65` | Generate key pair for ML-DSA-65 post-quantum signature (REALITY) |
 | `XMRay mlkem768` | Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption) |
 | `XMRay vlessenc` | Generate decryption/encryption JSON pair (VLESS Encryption) |
-| `XMRay obtain` | Generate SSL/TLS certificate for domain name |
-| `XMRay renew` | Renew SSL/TLS certificate for domain name |
+| `XMRay cert new` | Generate SSL/TLS certificate for domain name |
+| `XMRay cert renew` | Renew SSL/TLS certificate for domain name |
 | `XMRay ping` | Ping a domain with TLS handshake |
 | `XMRay ech` | Generate ECH keys with default or custom server name |
 | `XMRay hash` | Calculate hash for specific certificate |

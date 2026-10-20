@@ -42,19 +42,19 @@ Arguments:
 
 Examples:
   Generate a basic certificate:
-    tls generate --domain example.com
+    generate --domain example.com
 
   Generate with multiple domains:
-    tls generate --domain example.com --domain www.example.com --domain api.example.com
+    generate --domain example.com --domain www.example.com --domain api.example.com
 
   Generate a CA certificate:
-    tls generate --ca --name "My Root CA" --org "My Organization" --expire 8760h
+    generate --ca --name "My Root CA" --org "My Organization" --expire 8760h
 
   Save to file:
-    tls generate --domain example.com --file /path/to/mycert
+    generate --domain example.com --file /path/to/mycert
 
   Generate without JSON output:
-    tls generate --domain example.com --json=false --file mycert`,
+    generate --domain example.com --json=false --file mycert`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := executeTLSCert(); err != nil {
 				fmt.Printf("Error: %v\n", err)
@@ -70,7 +70,8 @@ func init() {
 	tlsCertCmd.Flags().BoolVar(&certIsCA, "ca", false, "Whether this certificate is a CA")
 	tlsCertCmd.Flags().BoolVar(&certJSONOutput, "json", true, "Print certificate in JSON format")
 	tlsCertCmd.Flags().StringVar(&certFileOutput, "file", "", "Save certificate to file (creates .crt and .key files)")
-	tlsCertCmd.Flags().DurationVar(&certExpire, "expire", time.Hour*24*90, "Time until the certificate expires (default: 2160h = 90 days)")
+	tlsCertCmd.Flags().DurationVar(&certExpire, "expire", time.Hour*24*360, "Time until the certificate expires (default: 84600h = 360 days)")
+	rootCmd.AddCommand(tlsCertCmd)
 }
 
 func executeTLSCert() error {

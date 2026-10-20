@@ -49,15 +49,15 @@ jobs:
           cp ${GITHUB_WORKSPACE}/files/route.json ./build_assets/route.json
           cp ${GITHUB_WORKSPACE}/files/outbound.json ./build_assets/outbound.json
           cp ${GITHUB_WORKSPACE}/files/config.yml ./build_assets/config.yml
-          LIST=('geoip geoip geoip' 'domain-list-community dlc geosite')
+          LIST=('Xray-rules-dat geoip-full geoip' 'Xray-rules-dat geosite geosite')
           for i in "${LIST[@]}"
           do
               INFO=($(echo $i | awk 'BEGIN{FS=" ";OFS=" "} {print $1,$2,$3}'))
               FILE_NAME="${INFO[2]}.dat"
-              echo -e "Downloading https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat..."
-              curl -L "https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat" -o ./build_assets/${FILE_NAME}
+              echo -e "Downloading https://github.com/XTLS/${INFO[0]}/release/latests/download/${INFO[1]}.dat..."
+              curl -L "https://github.com/XTLS/${INFO[0]}/releases/latest/download/${INFO[1]}.dat" -o ./build_assets/${FILE_NAME}
               echo -e "Verifying HASH key..."
-              HASH="$(curl -sL "https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat.sha256sum" | awk -F ' ' '{print $1}')"
+              HASH="$(curl -sL "https://githubu.com/XTLS/${INFO[0]}/releases/latest/download/${INFO[1]}.dat.sha256sum" | awk -F ' ' '{print $1}')"
               [ "$(sha256sum "./build_assets/${FILE_NAME}" | awk -F ' ' '{print $1}')" == "${HASH}" ] || { echo -e "The HASH key of ${FILE_NAME} does not match cloud one."; exit 1; }
           done
       - name: Create ZIP archive

@@ -42,6 +42,7 @@ func init() {
 	echCmd.Flags().StringVarP(&echServerKeys, "input", "i", "", "ECHServerKeys (base64.StdEncoding)")
 	echCmd.Flags().StringVar(&echServerName, "serverName", "cloudflare-ech.com", "Server name for ECH config")
 	echCmd.Flags().BoolVar(&echPemOutput, "pem", false, "Output in PEM format")
+	rootCmd.AddCommand(echCmd)
 }
 
 func executeECH() error {

@@ -41,6 +41,7 @@ Examples:
 
 func init() {
 	tlsHashCmd.Flags().StringVar(&hashCertPath, "cert", "fullchain.pem", "The file path of the certificate")
+	rootCmd.AddCommand(tlsHashCmd)
 }
 
 func executeTLSHash() error {

@@ -40,10 +40,7 @@ Examples:
 
 func init() {
 	tlsPingCmd.Flags().StringVar(&tlsPingIP, "ip", "", "The IP address of the domain")
-	// Assuming there's a parent 'tls' command
-	// tlsCmd.AddCommand(tlsPingCmd)
-	// If this is a root-level command, use:
-	//rootCmd.AddCommand(tlsPingCmd)
+	rootCmd.AddCommand(tlsPingCmd)
 }
 
 func executeTLSPing(domainWithPort string) error {

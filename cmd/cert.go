@@ -20,7 +20,7 @@ using Let's Encrypt via HTTP challenge.`,
 	}
 
 	certObtainCmd = &cobra.Command{
-		Use:   "obtain",
+		Use:   "new",
 		Short: "Obtain a new certificate",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := executeCertObtain(); err != nil {
