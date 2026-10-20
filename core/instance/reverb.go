@@ -155,6 +155,7 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 	}
 	if cfg.AppSecret != "" {
 		if i.instanceConfig.ApiConfig != nil && i.panelType == "XMPlusGo" {
+			log.Printf("[Reverb] Authenticating with Server ID")
 			subData["auth"] = gosignChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel, serverID, apiKey)
 		} else {
 			subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel)
@@ -327,7 +328,8 @@ func signChannel(appKey, appSecret, socketID, channel string) string {
 
 func gosignChannel(appKey, appSecret, socketID, channel string, serverID int, apiKey string) string {
 	stringToSign := fmt.Sprintf("%s:%s:%d", socketID, channel, serverID)
-	mac := hmac.New(sha256.New, []byte(appSecret+apiKey))
+	secret := fmt.Sprintf("%s%s", appSecret, apiKey)
+	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(stringToSign))
 	sig := hex.EncodeToString(mac.Sum(nil))
 	return appKey + ":" + sig
