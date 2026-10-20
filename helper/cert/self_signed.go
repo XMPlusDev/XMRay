@@ -93,7 +93,7 @@ func (c *GeneratedCert) Save(pathBase string) error {
 		return nil
 	}
 	if !errors.Is(reuseErr, fs.ErrNotExist) { // first run is not worth a warning
-		log.Printf("self-signed certificate %s regenerated: %v (clients pinning the old hash must refresh)", pathBase, reuseErr)
+		log.Printf("self-signed certificate %s regenerated: %v", pathBase, reuseErr)
 	}
 
 	certPEM, keyPEM := c.ToPEM()
@@ -174,7 +174,7 @@ func (c *GeneratedCert) checkAndReuse(pathBase string) error {
 	if existing.IsCA != fresh.IsCA ||
 		existing.Subject.CommonName != fresh.Subject.CommonName ||
 		!slices.Equal(a, b) {
-		return fmt.Errorf("certificate parameters changed")
+		return fmt.Errorf("certificate content changed")
 	}
 
 	// the key on disk must belong to this certificate
