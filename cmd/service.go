@@ -135,7 +135,7 @@ var logCmd = &cobra.Command{
 			return err
 		}
 		if isSystemdAvailable() {
-			cmd := exec.Command("journalctl", "-u", serviceName, "--no-pager")
+			cmd := exec.Command("journalctl", "-u", serviceName, "--no-pager", "-f")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			return cmd.Run()
