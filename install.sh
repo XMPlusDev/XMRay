@@ -95,14 +95,6 @@ install_XMRay() {
         rm /usr/local/XMRay/ -rf
     fi
 	
-	if [[ -f /usr/bin/XMRay ]]; then
-		rm /usr/bin/XMRay -f
-	fi
-	
-	if [[ -f /usr/bin/xmray ]]; then
-		rm /usr/bin/xmray -f
-	fi
-	
     mkdir /usr/local/XMRay/ -p
 	
 	cd /usr/local/XMRay/
@@ -164,6 +156,14 @@ install_XMRay() {
     else
        echo "not found."
     fi	
+	
+	if [[ -f /usr/bin/XMRay ]]; then
+		rm /usr/bin/XMRay -f
+	fi
+	
+	if [[ -f /usr/bin/xmray ]]; then
+		rm /usr/bin/xmray -f
+	fi
 	
     mkdir /etc/XMRay/ -p
 	
