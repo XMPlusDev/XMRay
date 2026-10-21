@@ -952,48 +952,47 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 
 | Command | Description |
 |---------|-------------|
-| `XMRay` | Show menu (more features) |
-| `XMRay start` | Start XMRay |
-| `XMRay stop` | Stop XMRay |
-| `XMRay restart` | Restart XMRay |
-| `XMRay status` | View XMRay status |
+| `xmray` | Show menu (more features) |
+| `xmray start` | Start XMRay |
+| `xmray stop` | Stop XMRay |
+| `xmrayxmray restart` | Restart XMRay |
+| `xmray status` | View XMRay status |
 
 ## Service Management
 
 | Command | Description |
 |---------|-------------|
-| `XMRay enable` | Enable XMRay auto-start |
-| `XMRay disable` | Disable XMRay auto-start |
+| `xmray enable` | Enable XMRay auto-start |
+| `xmray disable` | Disable XMRay auto-start |
 
 ## Logging & Configuration
 
 | Command | Description |
 |---------|-------------|
-| `XMRay log` | View XMRay logs |
-| `XMRay config` | Show configuration file content |
+| `xmray log` | View XMRay logs |
+| `xmray config` | Show configuration file content |
 
 ## Installation & Updates
 
 | Command | Description |
 |---------|-------------|
-| `XMRay install` | Install XMRay |
-| `XMRay uninstall` | Uninstall XMRay |
-| `XMRay update` | Update XMRay |
-| `XMRay update vx.x.x` | Update XMRay to specific version |
-| `XMRay version` | View XMRay version |
+| `xmray uninstall` | Uninstall XMRay |
+| `xmray update` | Update XMRay |
+| `xmray update vx.x.x` | Update XMRay to specific version |
+| `xmray version` | View XMRay version |
 
 ## Key Generation & Utilities
 
 | Command | Description |
 |---------|-------------|
-| `XMRay warp` | Generate Cloudflare WARP account |
-| `XMRay x25519` | Generate key pair for X25519 key exchange (REALITY, VLESS Encryption) |
-| `XMRay mldsa65` | Generate key pair for ML-DSA-65 post-quantum signature (REALITY) |
-| `XMRay mlkem768` | Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption) |
-| `XMRay vlessenc` | Generate decryption/encryption JSON pair (VLESS Encryption) |
-| `XMRay cert new` | Generate SSL/TLS certificate for domain name |
-| `XMRay cert renew` | Renew SSL/TLS certificate for domain name |
-| `XMRay ping` | Ping a domain with TLS handshake |
-| `XMRay ech` | Generate ECH keys with default or custom server name |
-| `XMRay hash` | Calculate hash for specific certificate |
-| `XMRay generate` | Generate self-signed TLS certificates for testing and production use |
+| `xmray warp` | Generate Cloudflare WARP account |
+| `xmray x25519` | Generate key pair for X25519 key exchange (REALITY, VLESS Encryption) |
+| `xmray mldsa65` | Generate key pair for ML-DSA-65 post-quantum signature (REALITY) |
+| `xmray mlkem768` | Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption) |
+| `xmray vlessenc` | Generate decryption/encryption JSON pair (VLESS Encryption) |
+| `xmray cert new` | Generate SSL/TLS certificate for domain name |
+| `xmray cert renew` | Renew SSL/TLS certificate for domain name |
+| `xmray ping` | Ping a domain with TLS handshake |
+| `xmray ech` | Generate ECH keys with default or custom server name |
+| `xmray hash` | Calculate hash for specific certificate |
+| `xmray generate` | Generate self-signed TLS certificates for testing and production use |
