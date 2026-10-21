@@ -225,7 +225,7 @@ func (i *Instance) Start() error {
 
 	log.Println("XMRay started successfully")
 
-	i.currentPusher = i.PushEvent
+	pusher := i.PushEvent
 	
 	for _, cfg := range i.instanceConfig.ReverbConfig {
 		if cfg == nil || !cfg.Enable {
@@ -257,7 +257,7 @@ func (i *Instance) Start() error {
 
 		for _, n := range resp.Nodes {
 			nodeClient := rootClient.ForNode(n.NodeID)
-			svc := controller.New(server, nodeClient, controllerConfig, i.Dispatcher, i.currentPusher)
+			svc := controller.New(server, nodeClient, controllerConfig, i.Dispatcher, pusher)
 			i.Service = append(i.Service, svc)
 		}
 
@@ -274,7 +274,7 @@ func (i *Instance) Start() error {
 			}
 		}
 
-		i.startServerNodePoller(rootClient, controllerConfig, i.currentPusher, resp.PollInterval)
+		i.startServerNodePoller(rootClient, controllerConfig, pusher, resp.PollInterval)
 
 		i.startServerStatusTask(rootClient)
 
