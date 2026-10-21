@@ -25,7 +25,8 @@ var (
 	rootCmd = &cobra.Command{
 		Use: "xmray",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) == 0 && cfgFile == "" {
+				fmt.Println(statusDisplay())
 				cmd.Help()
 				return
 			}
@@ -227,3 +228,5 @@ func startInstanceSafely(i *instance.Instance) (err error) {
 func Execute() error {
 	return rootCmd.Execute()
 }
+
+

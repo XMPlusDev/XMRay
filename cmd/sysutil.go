@@ -131,6 +131,36 @@ func isXMRayInstalled() bool {
 	return false
 }
 
+// isXMRayRunning reports whether the XMRay systemd service is currently active.
+func isXMRayRunning() bool {
+	if !isSystemdAvailable() {
+		return false
+	}
+	cmd := exec.Command("systemctl", "is-active", serviceName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(output)) == "active"
+}
+
+// statusDisplay returns a colored string describing the install/running status.
+func statusDisplay() string {
+	const (
+		green  = "\033[32m"
+		yellow = "\033[33m"
+		red    = "\033[31m"
+		reset  = "\033[0m"
+	)
+	if !isXMRayInstalled() {
+		return fmt.Sprintf("%sStatus: not installed%s", red, reset)
+	}
+	if isXMRayRunning() {
+		return fmt.Sprintf("%sStatus: installed and running%s", green, reset)
+	}
+	return fmt.Sprintf("%sStatus: installed but not running%s", yellow, reset)
+}
+
 // checkInstalled returns an error if XMRay is not installed.
 func checkInstalled() error {
 	if !isXMRayInstalled() {
