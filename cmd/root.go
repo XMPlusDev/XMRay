@@ -23,8 +23,12 @@ import (
 var (
 	cfgFile string
 	rootCmd = &cobra.Command{
-		Use: "XMRay",
+		Use: "xmray",
 		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				cmd.Help()
+				return
+			}
 			if err := run(); err != nil {
 				log.Fatal(err)
 			}

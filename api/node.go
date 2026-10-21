@@ -151,13 +151,15 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	}
 	
 	if nodeInfo.NodeType == "masque" {
-		if addressData, addressExists := transportData.CheckGet("masque_address"); addressExists {
-			if v, err := addressData.Get("masque_address").StringArray(); err == nil {
+		if addr, ok := transportData.CheckGet("masque_address"); ok {
+			if v, err := addr.StringArray(); err == nil {
 				nodeInfo.MasqueAddress = v
+			} else if s, err := addr.String(); err == nil {
+				nodeInfo.MasqueAddress = strings.Split(s, ",")
 			}
 		}
-		if _, mtuExists := transportData.CheckGet("masque_mtu"); mtuExists {
-			nodeInfo.MasqueMTU = uint32(transportData.Get("masque_mtu").MustInt())
+		if mtu := transportData.Get("masque_mtu").MustInt(); mtu > 0 {
+			nodeInfo.MasqueMTU = uint32(mtu)
 		}
 	}
 
@@ -375,15 +377,11 @@ func parseNetworkSettings(
 				HKeepAlivePeriod: int64(xmuxData.Get("hKeepAlivePeriod").MustInt()),
 			}
 		}
-		if remoteDNSData, ok := transportSettings.CheckGet("remote_dns"); ok {
-			if v, err := remoteDNSData.Get("remote_dns").StringArray(); err == nil {
-				m.RemoteDNS = v
-			}
+		if v, err := transportSettings.Get("remote_dns").StringArray(); err == nil {
+			m.RemoteDNS = v
 		}
-		if pathData, ok := transportSettings.CheckGet("path"); ok {
-			if v, err := pathData.Get("path").String(); err == nil {
-				m.Path = v
-			}
+		if v, err := transportSettings.Get("path").String(); err == nil {
+			m.Path = v
 		}
 		
 		*masque = m

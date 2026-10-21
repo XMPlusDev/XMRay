@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -120,14 +121,11 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 	
 	case "masque":
 		inboundDetourConfig.Protocol = "masque"
-		mtu := nodeInfo.MasqueMTU
-		if mtu != 0 && (mtu < 1280 || mtu > 65535) {
-			return nil, fmt.Errorf("invalid MASQUE MTU %d: use 0 (default) or a value between 1280 and 65535", mtu)
+		masqueSetting, err := buildMasqueServerConfig(nodeInfo.MasqueAddress, nodeInfo.MasqueMTU)
+		if err != nil {
+			return nil, err
 		}
-		proxySetting = &conf.MasqueServerConfig{
-			Address: nodeInfo.MasqueAddress,
-			MTU: mtu,
-		}
+		proxySetting = masqueSetting
 	
 	default:
 		return nil, fmt.Errorf("unsupported node type: %v", nodeInfo.NodeType)
@@ -466,4 +464,40 @@ func buildTrojanFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.TrojanInbo
 		}
 	}
 	return trojanFallBacks, nil
+}
+
+func buildMasqueServerConfig(addresses []string, mtu uint32) (*conf.MasqueServerConfig, error) {
+    if mtu != 0 && (mtu < 1280 || mtu > 65535) {
+        return nil, fmt.Errorf("invalid MASQUE MTU %d: use 0 (default) or a value between 1280 and 65535", mtu)
+    }
+
+    var v4, v6 bool
+    cleaned := make([]string, 0, len(addresses))
+    for _, s := range addresses {
+        s = strings.TrimSpace(s)
+        if s == "" {
+            continue
+        }
+        prefix, err := netip.ParsePrefix(s)
+        if err != nil {
+            return nil, fmt.Errorf("invalid MASQUE address %q (expected CIDR, e.g. 10.0.0.1/24): %w", s, err)
+        }
+        if prefix.Addr().Is4() {
+            if v4 {
+                return nil, fmt.Errorf("MASQUE address takes at most one IPv4 and one IPv6 prefix")
+            }
+            v4 = true
+        } else {
+            if v6 {
+                return nil, fmt.Errorf("MASQUE address takes at most one IPv4 and one IPv6 prefix")
+            }
+            v6 = true
+        }
+        cleaned = append(cleaned, s)
+    }
+    if len(cleaned) == 0 {
+        return nil, fmt.Errorf("MASQUE address is not set")
+    }
+
+    return &conf.MasqueServerConfig{Address: cleaned, MTU: mtu}, nil
 }
