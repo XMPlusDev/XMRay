@@ -70,10 +70,10 @@ fi
 install_base() {
     if [[ x"${release}" == x"centos" ]]; then
         yum install epel-release -y
-        yum install wget curl unzip tar crontabs socat -y
+        yum install wget curl unzip tar -y
     else
         apt update -y
-        apt install wget curl unzip tar cron socat -y
+        apt install wget curl unzip tar -y
     fi
 }
 
@@ -90,22 +90,10 @@ check_status() {
     fi
 }
 
-install_acme() {
-    curl https://get.acme.sh | sh
-}
-
 install_XMRay() {
     if [[ -e /usr/local/XMRay/ ]]; then
         rm /usr/local/XMRay/ -rf
     fi
-	
-	if [[ -f /usr/bin/XMRay ]]; then
-		rm /usr/bin/XMRay -f
-	fi
-	
-	if [[ -f /usr/bin/xmray ]]; then
-		rm /usr/bin/xmray -f
-	fi
 	
     mkdir /usr/local/XMRay/ -p
 	
@@ -169,6 +157,14 @@ install_XMRay() {
        echo "not found."
     fi	
 	
+	if [[ -f /usr/bin/XMRay ]]; then
+		rm /usr/bin/XMRay -f
+	fi
+	
+	if [[ -f /usr/bin/xmray ]]; then
+		rm /usr/bin/xmray -f
+	fi
+	
     mkdir /etc/XMRay/ -p
 	
     echo -e "${green}XMRay ${last_version}${plain} The installation is complete，XMRay has restarted"
@@ -206,43 +202,40 @@ install_XMRay() {
         fi
     fi
     
-    curl -o /usr/bin/XMRay -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/XMRay.sh
-    chmod +x /usr/bin/XMRay
-    ln -s /usr/bin/XMRay /usr/bin/xmray 
+    ln -s /usr/local/XMRay/XMRay /usr/bin/xmray 
     chmod +x /usr/bin/xmray
 
     echo -e ""
     echo "XMRay Management usage method: "
     echo "------------------------------------------"
-    echo "XMRay                    - Show menu (more features)"
-    echo "XMRay start              - Start XMRay"
-    echo "XMRay stop               - Stop XMRay"
-    echo "XMRay restart            - Restart XMRay"
-    echo "XMRay status             - View XMRay status"
-    echo "XMRay enable             - Enable XMRay auto-start"
-    echo "XMRay disable            - Disable XMRay auto-start"
-    echo "XMRay log                - View XMRay logs"
-    echo "XMRay update             - Update XMRay"
-    echo "XMRay update vx.x.x      - Update XMRay Specific version"
-    echo "XMRay config             - Show configuration file content"
-    echo "XMRay install            - Install XMRay"
-    echo "XMRay uninstall          - Uninstall XMRay"
-    echo "XMRay version            - View XMRay version"
-    echo "XMRay warp               - Generate cloudflare warp account"
-    echo "XMRay x25519             - Generate key pair for X25519 key exchange (REALITY, VLESS Encryption)"
-    echo "XMRay mldsa65            - Generate key pair for ML-DSA-65 post-quantum signature (REALITY)"
-    echo "XMRay mlkem768           - Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption)"
-    echo "XMRay vlessenc           - Generate decryption/encryption json pair (VLESS Encryption)" 
-    echo "XMRay ping               - Ping a domain with TLS handshake" 
-    echo "XMRay obtain             - Generate SSL/TLS certificate for domain name" 
-    echo "XMRay renew              - Renew SSL/TLS certificate for domain name" 
-    echo "XMRay ech                - Generate ECH keys with default or custom server name"
-    echo "XMRay hash               - Calculate hash for specific certificate"
-    echo "XMRay generate           - Generate self-signed TLS certificates for testing and production use"	
+    echo "xmray                    - Show menu (more features)"
+    echo "xmray start              - Start XMRay"
+    echo "xmray stop               - Stop XMRay"
+    echo "xmray restart            - Restart XMRay"
+    echo "xmray status             - View XMRay status"
+    echo "xmray enable             - Enable XMRay auto-start"
+    echo "xmray disable            - Disable XMRay auto-start"
+    echo "xmray log                - View XMRay logs"
+    echo "xmray update             - Update XMRay"
+    echo "xmray update vx.x.x      - Update XMRay Specific version"
+    echo "xmray config             - Show configuration file content"
+    echo "xmray install            - Install XMRay"
+    echo "xmray uninstall          - Uninstall XMRay"
+    echo "xmray version            - View XMRay version"
+    echo "xmray warp               - Generate cloudflare warp account"
+    echo "xmray x25519             - Generate key pair for X25519 key exchange (REALITY, VLESS Encryption)"
+    echo "xmray mldsa65            - Generate key pair for ML-DSA-65 post-quantum signature (REALITY)"
+    echo "xmray mlkem768           - Generate key pair for ML-KEM-768 post-quantum key exchange (VLESS Encryption)"
+    echo "xmray vlessenc           - Generate decryption/encryption json pair (VLESS Encryption)" 
+    echo "xmray ping               - Ping a domain with TLS handshake" 
+    echo "xmray cert new           - Generate acme SSL/TLS certificate for domain name" 
+    echo "xmray cert renew         - Renew acme SSL/TLS certificate for domain name" 
+    echo "xmray ech                - Generate ECH keys with default or custom server name"
+    echo "xmray hash               - Calculate hash for specific certificate"
+    echo "xmray generate           - Generate self-signed TLS certificates for testing and production use"	
     echo "------------------------------------------"
 }
 
 echo -e "${green}Start Installation${plain}"
 install_base
-#install_acme
 install_XMRay $1
