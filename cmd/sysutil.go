@@ -3,6 +3,7 @@ package cmd
 import (
 	"archive/zip"
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const (
@@ -159,30 +161,35 @@ func confirm(prompt string, defaultYes bool) (bool, error) {
 // fetchLatestVersion queries the GitHub API for the latest release tag.
 func fetchLatestVersion() (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", xmrayRepo)
-	resp, err := http.Get(url)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "xmray-updater")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to query GitHub API: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read GitHub API response: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned HTTP %d (possibly rate limited), try again later or specify a version: xmray update vx.x.x", resp.StatusCode)
 	}
 
-	str := string(body)
-	idx := strings.Index(str, `"tag_name"`)
-	if idx < 0 {
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("invalid GitHub API response: %w", err)
+	}
+	if release.TagName == "" {
 		return "", fmt.Errorf("failed to detect the XMRay version from GitHub API")
 	}
-	rest := str[idx:]
-	colonIdx := strings.Index(rest, ":")
-	if colonIdx < 0 {
-		return "", fmt.Errorf("invalid GitHub API response")
-	}
-	value := strings.TrimSpace(rest[colonIdx+1:])
-	value = strings.Trim(value, `",`)
-	return value, nil
+	return release.TagName, nil
 }
 
 // downloadFile downloads a URL to a local path.
@@ -331,17 +338,22 @@ func copyConfigFiles() error {
 	if err := os.MkdirAll(xmrayConfigDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
+	// Geo data ships with every release; user-editable configs are only created when missing.
+	alwaysOverwrite := map[string]bool{"geoip.dat": true, "geosite.dat": true}
+
 	for _, f := range files {
 		src := filepath.Join(xmrayInstallDir, f)
 		dst := filepath.Join(xmrayConfigDir, f)
-		if _, err := os.Stat(dst); err != nil {
-			data, err := os.ReadFile(src)
-			if err != nil {
-				continue
-			}
-			if err := os.WriteFile(dst, data, 0644); err != nil {
-				return fmt.Errorf("failed to copy %s: %w", f, err)
-			}
+
+		if _, err := os.Stat(dst); err == nil && !alwaysOverwrite[f] {
+			continue
+		}
+		data, err := os.ReadFile(src)
+		if err != nil {
+			continue
+		}
+		if err := os.WriteFile(dst, data, 0644); err != nil {
+			return fmt.Errorf("failed to copy %s: %w", f, err)
 		}
 	}
 	return nil

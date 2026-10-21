@@ -147,22 +147,8 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 
 	subData := map[string]any{"channel": reverbChannel}
 
-	var serverID int
-	var apiKey string
-	if i.instanceConfig.ApiConfig != nil {
-		serverID = i.instanceConfig.ApiConfig.ServerID
-		apiKey = i.instanceConfig.ApiConfig.Key
-	}
 	if cfg.AppSecret != "" {
-		if i.instanceConfig.ApiConfig != nil && i.panelType == "XMPlusGo" {
-			//log.Printf("[Reverb] Authenticating with Server ID")
-			subData["auth"] = gosignChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel, serverID, apiKey)
-		} else {
-			subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel)
-		}
-	}
-	if i.instanceConfig.ApiConfig != nil {
-		subData["server_id"] = i.instanceConfig.ApiConfig.ServerID
+		subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel)
 	}
 
 	sub, _ := json.Marshal(pusherMessage{

@@ -46,15 +46,15 @@ func executeUpdate(args []string) error {
 		fmt.Printf("OS version: %s\n", osVersion)
 		switch release {
 		case "centos":
-			if osVersion != "" && mustBeLE(osVersion, 6) {
+			if mustBeLE(osVersion, 6) {
 				return fmt.Errorf("please use CentOS 7 or later")
 			}
 		case "ubuntu":
-			if osVersion != "" && mustBeLT(osVersion, 16) {
+			if mustBeLT(osVersion, 16) {
 				return fmt.Errorf("please use Ubuntu 16 or later system")
 			}
 		case "debian":
-			if osVersion != "" && mustBeLT(osVersion, 8) {
+			if mustBeLT(osVersion, 8) {
 				return fmt.Errorf("please use Debian 8 or higher")
 			}
 		}
@@ -81,32 +81,45 @@ func executeUpdate(args []string) error {
 		fmt.Printf("Latest version detected: %s\n", version)
 	}
 
-	os.RemoveAll(xmrayInstallDir)
-	os.Remove(filepath.Join(xmrayBinDir, xmrayBinName))
-	os.Remove(filepath.Join(xmrayBinDir, xmrayLinkName))
-
-	if err := os.MkdirAll(xmrayInstallDir, 0755); err != nil {
-		return fmt.Errorf("failed to create install directory: %w", err)
+	// Download and extract into a staging directory first, so a failed download
+	// never removes the working installation.
+	staging := filepath.Join(filepath.Dir(xmrayInstallDir), ".XMRay-update")
+	os.RemoveAll(staging)
+	if err := os.MkdirAll(staging, 0755); err != nil {
+		return fmt.Errorf("failed to create staging directory: %w", err)
 	}
-
+	defer os.RemoveAll(staging)
 
 	zipURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/XMRay-linux-%s.zip", xmrayRepo, version, arch)
-	zipPath := filepath.Join(xmrayInstallDir, "XMRay-linux.zip")
+	zipPath := filepath.Join(staging, "XMRay-linux.zip")
 
 	fmt.Printf("Downloading %s ...\n", zipURL)
 	if err := downloadFile(zipURL, zipPath); err != nil {
-		return fmt.Errorf("failed to download XMRay, please make sure your server can access GitHub: %w", err)
+		return fmt.Errorf("failed to download XMRay (make sure the version exists and your server can reach GitHub): %w", err)
 	}
 
 	fmt.Println("Extracting...")
-	if err := unzip(zipPath, xmrayInstallDir); err != nil {
+	if err := unzip(zipPath, staging); err != nil {
 		return fmt.Errorf("failed to extract XMRay: %w", err)
 	}
 	os.Remove(zipPath)
 
-	binSrc := filepath.Join(xmrayInstallDir, xmrayBinName)
-	if _, err := os.Stat(binSrc); err != nil {
+	if _, err := os.Stat(filepath.Join(staging, xmrayBinName)); err != nil {
 		return fmt.Errorf("XMRay binary not found in release package: %w", err)
+	}
+	if err := os.Chmod(filepath.Join(staging, xmrayBinName), 0755); err != nil {
+		return fmt.Errorf("failed to make binary executable: %w", err)
+	}
+
+	// The new package is good: stop the service and swap the install directory.
+	if isSystemdAvailable() {
+		_ = runCommandWithOutput("systemctl", "stop", serviceName)
+	}
+	if err := os.RemoveAll(xmrayInstallDir); err != nil {
+		return fmt.Errorf("failed to remove the old installation: %w", err)
+	}
+	if err := os.Rename(staging, xmrayInstallDir); err != nil {
+		return fmt.Errorf("failed to move the new installation into place: %w", err)
 	}
 
 	if isSystemdAvailable() {
@@ -116,35 +129,37 @@ func executeUpdate(args []string) error {
 		if err := runCommandWithOutput("systemctl", "daemon-reload"); err != nil {
 			return fmt.Errorf("systemctl daemon-reload: %w", err)
 		}
-		if err := runCommandWithOutput("systemctl", "stop", serviceName); err != nil {
-		}
 		if err := runCommandWithOutput("systemctl", "enable", serviceName); err != nil {
 			return fmt.Errorf("systemctl enable: %w", err)
 		}
+	}
+
+	// install.sh only starts the service when a config already exists.
+	hadConfig := false
+	if _, err := os.Stat("/etc/XMRay/config.yml"); err == nil {
+		hadConfig = true
 	}
 
 	if err := copyConfigFiles(); err != nil {
 		return err
 	}
 
-	binDst := filepath.Join(xmrayBinDir, xmrayBinName)
-	if data, err := os.ReadFile(binSrc); err == nil {
-		if err := os.WriteFile(binDst, data, 0755); err != nil {
-			return fmt.Errorf("failed to install binary: %w", err)
-		}
-	} else {
-		return fmt.Errorf("failed to read XMRay binary: %w", err)
-	}
-
+	// Like install.sh: the binary stays in the install directory, /usr/bin/xmray links to it.
+	binInstalled := filepath.Join(xmrayInstallDir, xmrayBinName)
+	os.Remove(filepath.Join(xmrayBinDir, xmrayBinName))
 	linkDst := filepath.Join(xmrayBinDir, xmrayLinkName)
 	os.Remove(linkDst)
-	if err := os.Symlink(binDst, linkDst); err != nil {
+	if err := os.Symlink(binInstalled, linkDst); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
 
 	if isSystemdAvailable() {
-		if err := runCommandWithOutput("systemctl", "restart", serviceName); err != nil {
-			return fmt.Errorf("failed to start XMRay, use [ xmray log ] to view logs: %w", err)
+		if hadConfig {
+			if err := runCommandWithOutput("systemctl", "restart", serviceName); err != nil {
+				return fmt.Errorf("failed to start XMRay, use [ xmray log ] to view logs: %w", err)
+			}
+		} else {
+			fmt.Println("No /etc/XMRay/config.yml found: edit the default config, then run [ xmray start ].")
 		}
 	}
 
