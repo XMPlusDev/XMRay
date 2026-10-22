@@ -114,7 +114,6 @@ type TlsSettings struct {
 	ECHServerKeys        string
 	ECHConfigList        string
 	PinnedPeerCertSha256 string
-	UseSystemCA          bool
 
 	DnsProvider string
 	CertFile    string
