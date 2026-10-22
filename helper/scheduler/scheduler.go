@@ -83,9 +83,7 @@ func (pt *PeriodicTask) RestartWithInterval(interval time.Duration) error {
 	if err := pt.Close(); err != nil {
 		return err
 	}
-	pt.mu.Lock()
-	pt.Periodic.Interval = interval
-	pt.mu.Unlock()
+	pt.Periodic.SetInterval(interval)
 	return pt.Start()
 }
 
@@ -164,4 +162,24 @@ func (m *Manager) Count() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.tasks)
+}
+
+func (m *Manager) AddAndStart(task *PeriodicTask) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+ 
+	for i, t := range m.tasks {
+		if t.Tag == task.Tag {
+			if err := t.Close(); err != nil {
+				return err
+			}
+			m.tasks = append(m.tasks[:i], m.tasks[i+1:]...)
+			break
+		}
+	}
+	if err := task.Start(); err != nil {
+		return err
+	}
+	m.tasks = append(m.tasks, task)
+	return nil
 }

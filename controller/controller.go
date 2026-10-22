@@ -163,14 +163,7 @@ func (c *Controller) Start() error {
 		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "server_status", serverStatusReportInterval, c.serverMonitor))
 	}
 
-	if c.nodeInfo.SecurityType == "tls" && c.nodeInfo.TlsSettings != nil && c.nodeInfo.TlsSettings.CertMode != "none" {
-		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "cert_renew", c.currentPollInterval*60, c.certMonitor))
-	}
-
-	if c.nodeInfo.SecurityType == "tls" && c.nodeInfo.TlsSettings.CertMode == "self-signed" {
-		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "cert_self_signed",
-			24*time.Hour, c.selfSignedCertMonitor))
-	}
+	c.addCertTasks()
 
 	go c.webhookTriggerLoop(c.currentPollInterval)
 
@@ -326,6 +319,7 @@ func (c *Controller) apiMonitor() (err error) {
 		c.nodeInfo = newNodeInfo
 		c.Tag = c.buildNodeTag()
 		c.LogPrefix = c.logPrefix()
+		c.syncCertTasks()
 
 		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 {
 			newRelayNodeInfo, err := c.client.GetTransitNode()
@@ -409,6 +403,7 @@ func (c *Controller) apiMonitor() (err error) {
 	} else {
 		if nodeInfoChanged {
 			c.nodeInfo = newNodeInfo
+			c.syncCertTasks()
 			if err := c.nodeManager.UpdateNodeInfo(c.Tag, newNodeInfo.SpeedLimit, newNodeInfo.IgnoreIPs); err != nil {
 				log.Printf("%s Controller APIMonitor UpdateNodeInfo: %v", c.LogPrefix, err)
 			}
