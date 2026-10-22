@@ -1,76 +1,81 @@
 package cert
 
 import (
-	"errors"
-	"io/fs"
-	"log"
-	"sync"
-    "crypto/tls"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"io/fs"
+	"log"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
 var saveMu sync.Mutex
 
-// CertOptions configures GenerateTLSCert (mirrors the flags of XMBox's
-// `tls generate` command).
+var errCAChanged = errors.New("signing CA changed")
+
 type CertOptions struct {
-	Domains      []string      // -domain (repeatable): SANs
-	CommonName   string        // -name: subject common name
-	Organization string        // -org: subject organization
-	IsCA         bool          // -ca: build a CA certificate
-	Expire       time.Duration // -expire: validity (default 3600 days)
+	Domains      []string       // -domain (repeatable): SANs (DNS names or IPs)
+	CommonName   string         // -name: subject common name
+	Organization string         // -org: subject organization
+	IsCA         bool           // -ca: build a CA certificate
+	Expire       time.Duration  // -expire: validity (default 3600 days)
+	Signer       *GeneratedCert // optional: sign with this CA instead of self-signing
 }
 
-// GeneratedCert is a freshly minted certificate: ASN.1 DER certificate and
-// PKCS#8 private key.
 type GeneratedCert struct {
 	Certificate []byte
 	PrivateKey  []byte
+	Chain       [][]byte
 }
 
-// ToPEM returns the certificate and private key as PEM blocks.
+type CAChain struct {
+	CA     *GeneratedCert
+	Server *GeneratedCert
+}
+
 func (c *GeneratedCert) ToPEM() (certPEM []byte, keyPEM []byte) {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.Certificate}),
 		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: c.PrivateKey})
 }
 
-// JSON renders the certificate like XMBox's `tls generate -json` output:
-// {"certificate": [...pem lines...], "key": [...pem lines...]}.
+func (c *GeneratedCert) FullChainPEM() []byte {
+	out := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.Certificate})
+	for _, der := range c.Chain {
+		out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})...)
+	}
+	return out
+}
+
 func (c *GeneratedCert) JSON() ([]byte, error) {
-	certPEM, keyPEM := c.ToPEM()
+	_, keyPEM := c.ToPEM()
 	out := struct {
 		Certificate []string `json:"certificate"`
 		Key         []string `json:"key"`
 	}{
-		Certificate: strings.Split(strings.TrimSpace(string(certPEM)), "\n"),
+		Certificate: strings.Split(strings.TrimSpace(string(c.FullChainPEM())), "\n"),
 		Key:         strings.Split(strings.TrimSpace(string(keyPEM)), "\n"),
 	}
 	b, err := json.MarshalIndent(&out, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("XMBox: encode certificate JSON: %w", err)
+		return nil, fmt.Errorf("XMRay: encode certificate JSON: %w", err)
 	}
 	return b, nil
 }
 
-// Hashes returns the certificate SHA-256 pin values for this generated
-// certificate, formatted for sing-box TLS pinning:
-//
-//   - CertificateB64 -> certificate_sha256 / client_certificate_sha256
-//   - PublicKeyB64   -> certificate_public_key_sha256 / client_certificate_public_key_sha256
 func (c *GeneratedCert) Hashes() (CertHashes, error) {
 	parsed, err := x509.ParseCertificate(c.Certificate)
 	if err != nil {
@@ -79,20 +84,15 @@ func (c *GeneratedCert) Hashes() (CertHashes, error) {
 	return CertHashesOf(parsed)
 }
 
-// Save checks if the certificate already exists and is not expired.
-// If the existing certificate is still valid, it returns nil without overwriting.
-// Otherwise, it writes the certificate to <pathBase>.crt and the key to <pathBase>.key
-// (the `tls generate -file` behaviour). It creates parent directories if needed.
-
 func (c *GeneratedCert) Save(pathBase string) error {
 	saveMu.Lock()
 	defer saveMu.Unlock()
 
 	reuseErr := c.checkAndReuse(pathBase)
 	if reuseErr == nil {
-		return nil
+		return c.saveFullChain(pathBase)
 	}
-	if !errors.Is(reuseErr, fs.ErrNotExist) { // first run is not worth a warning
+	if !errors.Is(reuseErr, fs.ErrNotExist) && !errors.Is(reuseErr, errCAChanged) { 
 		log.Printf("self-signed certificate %s regenerated: %v", pathBase, reuseErr)
 	}
 
@@ -100,12 +100,22 @@ func (c *GeneratedCert) Save(pathBase string) error {
 	if err := os.MkdirAll(filepath.Dir(pathBase), 0o755); err != nil {
 		return fmt.Errorf("create certificate directory: %w", err)
 	}
-	// key first: whatever reloads on the .crt change then finds the matching key
+	
 	if err := writeFileAtomic(pathBase+".key", keyPEM, 0o600); err != nil {
 		return fmt.Errorf("write private key: %w", err)
 	}
 	if err := writeFileAtomic(pathBase+".crt", certPEM, 0o644); err != nil {
 		return fmt.Errorf("write certificate: %w", err)
+	}
+	return c.saveFullChain(pathBase)
+}
+
+func (c *GeneratedCert) saveFullChain(pathBase string) error {
+	if len(c.Chain) == 0 {
+		return nil
+	}
+	if err := writeFileAtomic(pathBase+".fullchain.crt", c.FullChainPEM(), 0o644); err != nil {
+		return fmt.Errorf("write full chain: %w", err)
 	}
 	return nil
 }
@@ -116,7 +126,7 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // harmless after a successful rename
+	defer os.Remove(tmpName) 
 	if err := tmp.Chmod(perm); err != nil {
 		tmp.Close()
 		return err
@@ -131,11 +141,17 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	return os.Rename(tmpName, path)
 }
 
-// checkAndReuse checks if an existing certificate at pathBase is still valid.
-// If it is, it reads the existing key and returns nil. If it's expired or missing,
-// it returns an error to trigger a new generation.
+func ipStrings(ips []net.IP) []string {
+	out := make([]string, 0, len(ips))
+	for _, ip := range ips {
+		out = append(out, ip.String())
+	}
+	slices.Sort(out)
+	return out
+}
+
 func (c *GeneratedCert) checkAndReuse(pathBase string) error {
-	fresh, err := x509.ParseCertificate(c.Certificate) // carries the SANs we want now
+	fresh, err := x509.ParseCertificate(c.Certificate) 
 	if err != nil {
 		return fmt.Errorf("parse new certificate: %w", err)
 	}
@@ -161,52 +177,70 @@ func (c *GeneratedCert) checkAndReuse(pathBase string) error {
 		return fmt.Errorf("parse certificate: %w", err)
 	}
 
-	// renew a little before expiry (30 days, or 10% of lifetime for short-lived certs)
 	margin := min(30*24*time.Hour, fresh.NotAfter.Sub(fresh.NotBefore)/10)
 	if time.Now().Add(margin).After(existing.NotAfter) {
-		return fmt.Errorf("expiring")
+		return errCAChanged
 	}
 
-	// the requested parameters must still match
 	a, b := slices.Clone(existing.DNSNames), slices.Clone(fresh.DNSNames)
 	slices.Sort(a)
 	slices.Sort(b)
 	if existing.IsCA != fresh.IsCA ||
 		existing.Subject.CommonName != fresh.Subject.CommonName ||
-		!slices.Equal(a, b) {
+		!slices.Equal(a, b) ||
+		!slices.Equal(ipStrings(existing.IPAddresses), ipStrings(fresh.IPAddresses)) {
 		return fmt.Errorf("certificate content changed")
 	}
 
-	// the key on disk must belong to this certificate
+	if len(c.Chain) > 0 {
+		parent, err := x509.ParseCertificate(c.Chain[0])
+		if err != nil {
+			return fmt.Errorf("parse signer certificate: %w", err)
+		}
+		if err := existing.CheckSignatureFrom(parent); err != nil {
+			return errCAChanged 
+		}
+	}
+
 	if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
 		return fmt.Errorf("key does not match certificate: %w", err)
 	}
 
 	c.Certificate = certBlock.Bytes
-	c.PrivateKey = keyBlock.Bytes // DER, like the rest of this type
+	c.PrivateKey = keyBlock.Bytes 
 	return nil
 }
 
-// GenerateTLSCert generates a self-signed ECDSA-P256 TLS certificate.
-// The logic matches cert.Generate from xray-core's
-// common/protocol/tls/cert (MPL-2.0), with XMBox's flag defaults applied:
-// 3600-day expiry, key usage encipherment+signature, server-auth EKU,
-// and CA key usage when opts.IsCA is set.
+func loadSigner(s *GeneratedCert) (*x509.Certificate, any, error) {
+	parent, err := x509.ParseCertificate(s.Certificate)
+	if err != nil {
+		return nil, nil, fmt.Errorf("XMRay: parse signer certificate: %w", err)
+	}
+	if !parent.IsCA {
+		return nil, nil, errors.New("XMRay: signer certificate is not a CA")
+	}
+	key, err := x509.ParsePKCS8PrivateKey(s.PrivateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("XMRay: parse signer private key: %w", err)
+	}
+	return parent, key, nil
+}
+
 func GenerateTLSCert(opts CertOptions) (*GeneratedCert, error) {
 	expire := opts.Expire
 	if expire == 0 {
-		expire = 3600 * 24 * time.Hour // XMBox default: 86400h
+		expire = 3600 * 24 * time.Hour 
 	}
 
 	selfKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, fmt.Errorf("XMBox: generate private key: %w", err)
+		return nil, fmt.Errorf("XMRay: generate private key: %w", err)
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return nil, fmt.Errorf("XMBox: generate serial number: %w", err)
+		return nil, fmt.Errorf("XMRay: generate serial number: %w", err)
 	}
 
 	template := &x509.Certificate{
@@ -221,14 +255,14 @@ func GenerateTLSCert(opts CertOptions) (*GeneratedCert, error) {
 		template.IsCA = true
 		template.KeyUsage |= x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
 	}
-	if len(opts.Domains) > 0 {
-		template.DNSNames = opts.Domains
-		for _, d := range opts.Domains {
-			if ip := net.ParseIP(d); ip != nil {
-				template.IPAddresses = append(template.IPAddresses, ip)
-			} else if d != "" {
-				template.DNSNames = append(template.DNSNames, d)
-			}
+	for _, d := range opts.Domains {
+		if d == "" {
+			continue
+		}
+		if ip := net.ParseIP(d); ip != nil {
+			template.IPAddresses = append(template.IPAddresses, ip)
+		} else {
+			template.DNSNames = append(template.DNSNames, d)
 		}
 	}
 	if opts.CommonName != "" {
@@ -238,13 +272,68 @@ func GenerateTLSCert(opts CertOptions) (*GeneratedCert, error) {
 		template.Subject.Organization = []string{opts.Organization}
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, template, template, &selfKey.PublicKey, selfKey)
+	parent := template
+	var signKey any = selfKey
+	var chain [][]byte
+	if opts.Signer != nil {
+		parentCert, key, err := loadSigner(opts.Signer)
+		if err != nil {
+			return nil, err
+		}
+		parent, signKey = parentCert, key
+		chain = append([][]byte{opts.Signer.Certificate}, opts.Signer.Chain...)
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, template, parent, &selfKey.PublicKey, signKey)
 	if err != nil {
-		return nil, fmt.Errorf("XMBox: create certificate: %w", err)
+		return nil, fmt.Errorf("XMRay: create certificate: %w", err)
 	}
 	keyDER, err := x509.MarshalPKCS8PrivateKey(selfKey)
 	if err != nil {
-		return nil, fmt.Errorf("XMBox: marshal private key: %w", err)
+		return nil, fmt.Errorf("XMRay: marshal private key: %w", err)
 	}
-	return &GeneratedCert{Certificate: derBytes, PrivateKey: keyDER}, nil
+	return &GeneratedCert{Certificate: derBytes, PrivateKey: keyDER, Chain: chain}, nil
+}
+
+func GenerateAndSaveCAChain(opts CertOptions, caBase, serverBase string, caExpire time.Duration) (*CAChain, error) {
+	if caBase == "" || serverBase == "" {
+		return nil, errors.New("XMRay: caBase and serverBase are required")
+	}
+	if caExpire == 0 {
+		caExpire = 10 * 365 * 24 * time.Hour
+	}
+
+	caName := opts.CommonName
+	if caName == "" {
+		caName = "XMPlus"
+	}
+	caName += " CA"
+
+	ca, err := GenerateTLSCert(CertOptions{
+		CommonName:   caName,
+		Organization: opts.Organization,
+		IsCA:         true,
+		Expire:       caExpire,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := ca.Save(caBase); err != nil { 
+		return nil, fmt.Errorf("save CA: %w", err)
+	}
+
+	serverOpts := opts
+	serverOpts.IsCA = false
+	serverOpts.Signer = ca
+	if serverOpts.CommonName == "" && len(opts.Domains) > 0 {
+		serverOpts.CommonName = opts.Domains[0]
+	}
+	server, err := GenerateTLSCert(serverOpts)
+	if err != nil {
+		return nil, err
+	}
+	if err := server.Save(serverBase); err != nil {
+		return nil, fmt.Errorf("save server certificate: %w", err)
+	}
+	return &CAChain{CA: ca, Server: server}, nil
 }

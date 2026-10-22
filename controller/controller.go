@@ -3,13 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"log"
 	"reflect"
-	"regexp"
 	"strings"
 	"time"
-	"os"
 
 	"github.com/xtls/xray-core/core"
 
@@ -23,8 +20,6 @@ import (
 )
 
 const serverStatusReportInterval = 5 * time.Second
-
-var safeCertName = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$`)
 
 type Controller struct {
 	server     *core.Instance
@@ -598,57 +593,12 @@ func (c *Controller) buildRNodeTag() string {
 }
 
 func (c *Controller) selfSignedCertMonitor() error {
-	if c.nodeInfo.TlsSettings == nil {
-		return nil
-	}
-	if c.nodeInfo.TlsSettings.CertMode != "self-signed" {
-		return nil
-	}
-	if !safeCertName.MatchString(c.nodeInfo.TlsSettings.ServerName) {
-		return nil
-	}
-	assetDir := os.Getenv("XRAY_LOCATION_ASSET")
-	if assetDir == "" {
-		assetDir = "/etc/XMRay"
-	}
-	pathBase := filepath.Join(assetDir, c.nodeInfo.TlsSettings.ServerName)
-	domain := c.nodeInfo.TlsSettings.CertDomainName
-	if domain == "" {
-		domain = c.nodeInfo.TlsSettings.ServerName
-	}
-	generatedCert, err := cert.GenerateTLSCert(cert.CertOptions{
-		Domains:      []string{domain},
-		CommonName:   c.nodeInfo.TlsSettings.ServerName,
-		Organization: "XMPlus",
-		IsCA:         false,
-		Expire:       3600 * 24 * time.Hour,
-	})
-	if err != nil {
-		return fmt.Errorf("self-signed cert generate: %w", err)
-	}
-	if err := generatedCert.Save(pathBase); err != nil {
-		return fmt.Errorf("self-signed cert save: %w", err)
-	}
-	if pusher := c.nodePusher(); pusher != nil {
-		infos, hErr := cert.HashCertsFile(pathBase + ".crt")
-		if hErr != nil || len(infos) == 0 {
-			log.Printf("self-signed cert hash for %s unavailable: %v", pathBase, hErr)
-		} else if pErr := pusher("cert_hashes", map[string]any{
-			"core": "xray",
-			"pinnedPeerCertSha256": infos[0].SHA256,
-		}); pErr != nil {
-			log.Printf("cert_hashes push failed: %v", pErr)
-			if c.client != nil {
-				data := &api.CertHash{
-					Core: "xray",
-					PinnedPeerCertSha256: infos[0].SHA256,
-				}
-				if rErr := c.client.ReportCertHash(data); rErr != nil {
-					log.Printf("cert_hashes ReportCertHash failed: %v", rErr)
-				}
-			}
-		}			
-	}
-	
-	return nil
+    info := c.nodeInfo
+    if info == nil || info.TlsSettings == nil || info.TlsSettings.CertMode != "self-signed" {
+        return nil
+    }
+    if _, _, err := node.SelfSignedCertFile(info.TlsSettings, c.nodePusher(), c.client); err != nil {
+        log.Printf("%s self-signed cert renewal failed: %v", c.LogPrefix, err)
+    }
+    return nil
 }

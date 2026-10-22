@@ -5,13 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/netip"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
@@ -24,7 +19,6 @@ import (
 	"github.com/xmplusdev/xmray/helper/cert"
 )
 
-var safeCertName = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$`)
 
 func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher func(string, any) error, client api.API) (*core.InboundHandlerConfig, error) {
 	if config == nil {
@@ -317,7 +311,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 	inboundDetourConfig.StreamSetting = streamSetting
 	return inboundDetourConfig.Build()
 }
-
+ 
 func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings, pusher func(string, any) error, client api.API) (certFile string, keyFile string, err error) {
 	if certConfig == nil {
 		return "", "", fmt.Errorf("certConfig is nil")
@@ -356,53 +350,7 @@ func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings, push
 		}
 		return lego.HTTPCert(tlsSettings.CertMode, tlsSettings.CertDomainName, tlsSettings.CertEmail)
 	case "self-signed":
-		if !safeCertName.MatchString(tlsSettings.ServerName) {
-			return "", "", fmt.Errorf("invalid server name %q for self-signed certificate", tlsSettings.ServerName)
-		}
-		assetDir := os.Getenv("XRAY_LOCATION_ASSET")
-		if assetDir == "" {
-			assetDir = "/etc/XMRay"
-		}
-		pathBase := filepath.Join(assetDir, tlsSettings.ServerName)
-		domain := tlsSettings.CertDomainName
-		if domain == "" {
-			domain = tlsSettings.ServerName
-		}
-		generatedCert, err := cert.GenerateTLSCert(cert.CertOptions{
-			Domains:      []string{domain},
-			CommonName:   tlsSettings.ServerName,
-			Organization: "XMPlus",
-			IsCA:         false,
-			Expire:       3600 * 24 * time.Hour,
-		})
-		if err != nil {
-			return "", "", err
-		}
-		if err := generatedCert.Save(pathBase); err != nil {
-			return "", "", err
-		}
-		
-		if pusher != nil {
-			infos, hErr := cert.HashCertsFile(pathBase + ".crt")
-			if hErr != nil || len(infos) == 0 {
-				log.Printf("self-signed cert hash for %s unavailable: %v", pathBase, hErr)
-			} else if pErr := pusher("cert_hashes", map[string]any{
-				"core": "xray",
-				"pinnedPeerCertSha256": infos[0].SHA256, 
-			}); pErr != nil {
-				log.Printf("cert_hashes push via websocket failed: %v, trying via api", pErr)
-				if client != nil {
-					data := &api.CertHash{
-						Core: "xray",
-						PinnedPeerCertSha256: infos[0].SHA256,
-					}
-					if rErr := client.ReportCertHash(data); rErr != nil {
-						log.Printf("cert_hashes ReportCertHash failed: %v", rErr)
-					}
-				}
-			}		
-		}
-		return pathBase + ".crt", pathBase + ".key", nil
+		return SelfSignedCertFile(tlsSettings, pusher, client)
 	default:
 		return "", "", fmt.Errorf("unsupported certmode: %s", tlsSettings.CertMode)
 	}

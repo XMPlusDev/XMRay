@@ -346,6 +346,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			VerifyPeerCertByName: nodeInfo.TlsSettings.VerifyPeerCertByName,
 			ECHConfigList:        nodeInfo.TlsSettings.ECHConfigList,
 			PinnedPeerCertSha256: nodeInfo.TlsSettings.PinnedPeerCertSha256,
+		    UseSystemCA:          nodeInfo.TlsSettings.UseSystemCA,
 		}
 	}
 

@@ -23,35 +23,38 @@ var (
 	certJSONOutput   bool
 	certFileOutput   string
 	certExpire       time.Duration
+	certSigner       string
 
 	tlsCertCmd = &cobra.Command{
 		Use:   "generate",
 		Short: "Generate TLS certificates",
 		Long: `Generate TLS certificates for testing and production use.
 
-This command can generate both regular TLS certificates and Certificate Authority (CA) certificates.
+This command can generate self-signed certificates, Certificate Authority (CA)
+certificates, and certificates signed by an existing CA.
 
 Arguments:
   -domain         Domain name(s) for the certificate (can be specified multiple times)
   -name           Common name for the certificate
   -org            Organization name for the certificate
   -ca             Whether this certificate is a CA
+  -signer         Sign with an existing CA (base path; reads <path>.crt and <path>.key)
   -json           Output certificate in JSON format (default: true)
   -file           File path to save the certificate (saves as .crt and .key)
-  -expire         Certificate expiration duration (default: 2160h = 90 days)
+  -expire         Certificate expiration duration (default: 8640h = 360 days)
 
 Examples:
-  Generate a basic certificate:
+  Generate a basic self-signed certificate:
     generate --domain example.com
 
   Generate with multiple domains:
     generate --domain example.com --domain www.example.com --domain api.example.com
 
-  Generate a CA certificate:
-    generate --ca --name "My Root CA" --org "My Organization" --expire 8760h
+  Generate a CA certificate and save it (creates ca.crt and ca.key):
+    generate --ca --name "My Root CA" --org "My Organization" --expire 87600h --json=false --file ca
 
-  Save to file:
-    generate --domain example.com --file /path/to/mycert
+  Generate a server certificate signed by that CA:
+    generate --signer ca --domain example.com --name example.com --expire 2160h --json=false --file server
 
   Generate without JSON output:
     generate --domain example.com --json=false --file mycert`,
@@ -68,10 +71,28 @@ func init() {
 	tlsCertCmd.Flags().StringVar(&certCommonName, "name", "XMPlus Inc", "The common name of this certificate")
 	tlsCertCmd.Flags().StringVar(&certOrganization, "org", "XMPlus Inc", "Organization of the certificate")
 	tlsCertCmd.Flags().BoolVar(&certIsCA, "ca", false, "Whether this certificate is a CA")
+	tlsCertCmd.Flags().StringVar(&certSigner, "signer", "", "Sign with an existing CA (base path; reads <path>.crt and <path>.key)")
 	tlsCertCmd.Flags().BoolVar(&certJSONOutput, "json", true, "Print certificate in JSON format")
 	tlsCertCmd.Flags().StringVar(&certFileOutput, "file", "", "Save certificate to file (creates .crt and .key files)")
-	tlsCertCmd.Flags().DurationVar(&certExpire, "expire", time.Hour*24*360, "Time until the certificate expires (default: 84600h = 360 days)")
+	tlsCertCmd.Flags().DurationVar(&certExpire, "expire", time.Hour*24*360, "Time until the certificate expires (default: 8640h = 360 days)")
 	rootCmd.AddCommand(tlsCertCmd)
+}
+
+// loadSigner reads a CA certificate and private key from <base>.crt and <base>.key.
+func loadSigner(base string) (*cert.Certificate, error) {
+	caCrt, err := os.ReadFile(base + ".crt")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CA certificate: %w", err)
+	}
+	caKey, err := os.ReadFile(base + ".key")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CA key: %w", err)
+	}
+	parent, err := cert.ParseCertificate(caCrt, caKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse CA: %w", err)
+	}
+	return parent, nil
 }
 
 func executeTLSCert() error {
@@ -97,8 +118,18 @@ func executeTLSCert() error {
 	// Set organization
 	opts = append(opts, cert.Organization(certOrganization))
 
+	// Load signing CA, if any. A nil parent produces a self-signed certificate.
+	var parent *cert.Certificate
+	if certSigner != "" {
+		var err error
+		parent, err = loadSigner(certSigner)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Generate certificate
-	certificate, err := cert.Generate(nil, opts...)
+	certificate, err := cert.Generate(parent, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to generate TLS certificate: %w", err)
 	}
@@ -140,16 +171,13 @@ func printJSON(certificate *cert.Certificate) error {
 	return nil
 }
 
-func writeFile(content []byte, name string) error {
-	f, err := os.Create(name)
+func writeFile(content []byte, name string, perm os.FileMode) error {
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	//_, err = f.Write(content)
-	//return err
-	
 	return common.Error2(f.Write(content))
 }
 
@@ -158,10 +186,10 @@ func printFile(certificate *cert.Certificate, name string) error {
 
 	return task.Run(context.Background(),
 		func() error {
-			return writeFile(certPEM, name+".crt")
+			return writeFile(certPEM, name+".crt", 0o644)
 		},
 		func() error {
-			return writeFile(keyPEM, name+".key")
+			return writeFile(keyPEM, name+".key", 0o600)
 		},
 	)
 }

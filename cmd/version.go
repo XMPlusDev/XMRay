@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = `XMRay v2610214`
+var version = `XMRay v2610220`
 
 func init() {
 	rootCmd.AddCommand(&cobra.Command{

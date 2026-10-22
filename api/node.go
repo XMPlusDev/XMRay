@@ -650,6 +650,9 @@ func parseSecuritySettings(
 		if v, err := tlsData.Get("maxVersion").String(); err == nil {
 			tls.MaxVersion = v
 		}
+		if reject, err := tlsData.Get("useSystemCA").Bool(); err == nil {
+			tls.UseSystemCA = reject
+		}
 		*tlsSettings = tls
 	}
 
