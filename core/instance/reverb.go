@@ -311,12 +311,3 @@ func signChannel(appKey, appSecret, socketID, channel string) string {
 	sig := hex.EncodeToString(mac.Sum(nil))
 	return appKey + ":" + sig
 }
-
-func gosignChannel(appKey, appSecret, socketID, channel string, serverID int, apiKey string) string {
-	stringToSign := fmt.Sprintf("%s:%s:%d", socketID, channel, serverID)
-	secret := fmt.Sprintf("%s%s", appSecret, apiKey)
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(stringToSign))
-	sig := hex.EncodeToString(mac.Sum(nil))
-	return appKey + ":" + sig
-}
