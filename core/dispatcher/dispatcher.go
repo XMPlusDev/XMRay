@@ -2,9 +2,11 @@ package dispatcher
 
 import (
 	"context"
+	"log"
 	"fmt"
 	logger "log"
 	netModule "net"
+	"net/netip"
 	"reflect"
 	"strings"
 	"sync"
@@ -28,6 +30,72 @@ import (
 	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/limiter"
 )
+
+var masqueWarn sync.Once
+
+func masqueWarnOnce(msg string) {
+	masqueWarn.Do(func() { log.Printf("masque real-IP lookup disabled: %s", msg) })
+}
+
+func (ld *LimitingDispatcher) masqueOuterSource(ctx context.Context, in *session.Inbound) (dst net.Destination, ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			masqueWarnOnce("unexpected layout, panic recovered")
+			dst, ok = net.Destination{}, false
+		}
+	}()
+	if ld.ibm == nil || in.Tag == "" {
+		return
+	}
+	inner, ok2 := netip.AddrFromSlice(in.Source.Address.IP())
+	if !ok2 {
+		return
+	}
+	inner = inner.Unmap()
+
+	h, err := ld.ibm.GetHandler(ctx, in.Tag)
+	if err != nil {
+		return
+	}
+	hv := reflect.ValueOf(h)
+	if hv.Kind() != reflect.Ptr || hv.IsNil() {
+		return
+	}
+	pf := hv.Elem().FieldByName("proxy") // AlwaysOnInboundHandler.proxy
+	if !pf.IsValid() {
+		masqueWarnOnce("inbound handler has no 'proxy' field")
+		return
+	}
+	srv := reflect.NewAt(pf.Type(), unsafe.Pointer(pf.UnsafeAddr())).Elem().Elem()
+	if srv.Kind() != reflect.Ptr || srv.Type().String() != "*masque.Server" {
+		return
+	}
+	s := srv.Elem()
+	muF, tunF := s.FieldByName("mu"), s.FieldByName("tunnels")
+	if !muF.IsValid() || !tunF.IsValid() || tunF.Type().Key() != reflect.TypeOf(netip.Addr{}) {
+		masqueWarnOnce("masque.Server fields changed")
+		return
+	}
+	mu := (*sync.RWMutex)(unsafe.Pointer(muF.UnsafeAddr()))
+	tunnels := reflect.NewAt(tunF.Type(), unsafe.Pointer(tunF.UnsafeAddr())).Elem()
+
+	mu.RLock()
+	defer mu.RUnlock()
+	t := tunnels.MapIndex(reflect.ValueOf(inner))
+	if !t.IsValid() || t.IsNil() {
+		return // already the real address, or the tunnel is gone
+	}
+	cf := t.Elem().FieldByName("conn")
+	if !cf.IsValid() {
+		masqueWarnOnce("serverTunnel has no 'conn' field")
+		return
+	}
+	conn, ok3 := reflect.NewAt(cf.Type(), unsafe.Pointer(cf.UnsafeAddr())).Elem().Interface().(netModule.Conn)
+	if !ok3 {
+		return
+	}
+	return net.DestinationFromAddr(conn.RemoteAddr()), true
+}
 
 func maskIP(ipStr string, keepSegments int) string {
 	ip := netModule.ParseIP(ipStr)
@@ -229,6 +297,12 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 	}
 
 	sessionInbound.CanSpliceCopy = 3
+	
+	if sessionInbound.Name == "masque" {
+		if src, ok := ld.masqueOuterSource(ctx, sessionInbound); ok {
+			sessionInbound.Source = src
+		}
+	}
 
 	info := resolveUserLimits(sessionInbound)
 	if info == nil {
