@@ -27,6 +27,7 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 && cfgFile == "" {
 				fmt.Println(statusDisplay())
+				printUsage()
 				cmd.Help()
 				return
 			}

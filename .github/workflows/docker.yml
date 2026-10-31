@@ -28,7 +28,7 @@ jobs:
       - name: Download geo data files
         run: |
           mkdir -p ./build_assets
-          LIST=('Xray-rules-dat geoip-full geoip' 'Xray-rules-dat geosite geosite')
+          LIST=('Xray-rules-dat geoip-full geoip' 'Xray-rules-dat geosite-expand geosite')
           for i in "${LIST[@]}"
           do
               INFO=($(echo $i | awk 'BEGIN{FS=" ";OFS=" "} {print $1,$2,$3}'))

@@ -41,7 +41,7 @@ jobs:
       - name: Build XMRay
         run: |
           mkdir -p build_assets
-          go build -v -o build_assets/XMRay -trimpath -ldflags "-s -w -buildid=" -tags "http2legacy" .
+          go build -v -o build_assets/XMRay -trimpath -ldflags "-s -w -buildid=" .
 
       - name: Prepare to release
         run: |
@@ -49,7 +49,7 @@ jobs:
           cp ${GITHUB_WORKSPACE}/files/route.json ./build_assets/route.json
           cp ${GITHUB_WORKSPACE}/files/outbound.json ./build_assets/outbound.json
           cp ${GITHUB_WORKSPACE}/files/config.yml ./build_assets/config.yml
-          LIST=('Xray-rules-dat geoip-full geoip' 'Xray-rules-dat geosite geosite')
+          LIST=('Xray-rules-dat geoip-full geoip' 'Xray-rules-dat geosite-expand geosite')
           for i in "${LIST[@]}"
           do
               INFO=($(echo $i | awk 'BEGIN{FS=" ";OFS=" "} {print $1,$2,$3}'))

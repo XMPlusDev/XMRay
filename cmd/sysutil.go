@@ -156,9 +156,9 @@ func statusDisplay() string {
 		return fmt.Sprintf("%sStatus: not installed%s", red, reset)
 	}
 	if isXMRayRunning() {
-		return fmt.Sprintf("%sStatus: installed and running%s", green, reset)
+		return fmt.Sprintf("%sStatus: installed and running%s. \nVersion %s", green, reset, version)
 	}
-	return fmt.Sprintf("%sStatus: installed but not running%s", yellow, reset)
+	return fmt.Sprintf("%sStatus: installed but not running%s. 	\nVersion %s", yellow, reset, version)
 }
 
 // checkInstalled returns an error if XMRay is not installed.

@@ -203,7 +203,9 @@ install_XMRay() {
     fi
     
     ln -s /usr/local/XMRay/XMRay /usr/bin/xmray 
+	ln -s /usr/local/XMRay/XMRay /usr/bin/XMRay 
     chmod +x /usr/bin/xmray
+	chmod +x /usr/bin/XMRay
 
     echo -e ""
     echo "XMRay Management usage method: "
