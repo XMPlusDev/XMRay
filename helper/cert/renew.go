@@ -3,6 +3,7 @@ package cert
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"log"
 	"time"
 
@@ -51,6 +52,25 @@ func renewForDomains(domain string, client *lego.Client, certsStorage *Certifica
 
 	certsStorage.SaveResource(certRes)
 	return true, nil
+}
+
+func (l *LegoCMD) readPrimaryCert(domain string, certsStorage *CertificatesStorage) (*x509.Certificate, error) {
+	certs, err := certsStorage.ReadCertificate(sanitizedDomain(domain), ".crt")
+	if err != nil {
+		return nil, fmt.Errorf("loading certificate for %s: %w", domain, err)
+	}
+	if len(certs) == 0 {
+		return nil, fmt.Errorf("no certificate found for %s", domain)
+	}
+	return certs[0], nil
+}
+
+func (l *LegoCMD) renewalDue(domain string, days int) bool {
+	cert, err := l.readPrimaryCert(domain, NewCertificatesStorage(l.path))
+	if err == nil {
+		return needRenewal(cert, domain, days)
+	}
+	return false
 }
 
 func needRenewal(x509Cert *x509.Certificate, domain string, days int) bool {
