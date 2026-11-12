@@ -38,7 +38,6 @@ type Instance struct {
 	reverbOutbound   chan reverbOutbound
 	reverbMu         sync.Mutex
 	currentPusher    func(string, any) error
-	panelType        string
 	serverPoller      *scheduler.PeriodicTask
 	serverPollTrigger chan struct{}
 	serverStatusTask  *scheduler.PeriodicTask
@@ -248,8 +247,6 @@ func (i *Instance) Start() error {
 		if err != nil {
 			return fmt.Errorf("failed to fetch server nodes: %s", err)
 		}
-	
-		i.panelType = resp.PanelType
 
 		if resp.Version < 2606120 {
 			return fmt.Errorf("Backend does not support panel api version before v2606120. Update your panel.  Your panel api version is: %d", resp.Version)

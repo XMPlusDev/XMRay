@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/xtls/xray-core/infra/conf"
 )
 
 const (
@@ -26,7 +27,6 @@ type ServerNodesResponse struct {
 	Nodes        []*ServerNode `json:"nodes"`
 	PollInterval int           `json:"poll_interval"`
 	Version      int           `json:"api_version"`
-	PanelType    string         `json:"panel_type"`
 }
 
 type Response struct {
@@ -120,6 +120,9 @@ type TlsSettings struct {
 	KeyFile     string
 }
 
+
+type LimitFallback = conf.LimitFallback
+
 type RealitySettings struct {
 	Dest         json.RawMessage
 	Show         bool
@@ -138,6 +141,8 @@ type RealitySettings struct {
 	Fingerprint   string
 	PublicKey     string
 	Mldsa65Verify string
+	LimitFallbackUpload LimitFallback
+	LimitFallbackDownload LimitFallback
 }
 
 type MaskSettings struct {
@@ -272,8 +277,12 @@ type KcpSettings struct {
 	Tti uint32
 }
 
+type HysteriaMasquerade = conf.Masquerade
+
 type HysteriaSettings struct {
-	Version int32
+	Version        int32
+	UdpIdleTimeout int64              
+	Masquerade     *HysteriaMasquerade 
 }
 
 type MasqueSettings struct {

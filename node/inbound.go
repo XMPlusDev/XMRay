@@ -145,6 +145,21 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 		hysteriaSettings := &conf.HysteriaConfig{}
 		if nodeInfo.HysteriaSettings != nil {
 			hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
+			hysteriaSettings.UdpIdleTimeout = nodeInfo.HysteriaSettings.UdpIdleTimeout
+			if nodeInfo.HysteriaSettings.Masquerade != nil {
+				m := nodeInfo.HysteriaSettings.Masquerade
+				hysteriaSettings.Masquerade = conf.Masquerade{
+					Type:         m.Type,
+					Dir:          m.Dir,
+					Url:          m.Url,
+					RewriteHost:  m.RewriteHost,
+					XForwarded:   m.XForwarded,
+					Insecure:     m.Insecure,
+					Content:      m.Content,
+					Headers:      m.Headers,
+					StatusCode:   m.StatusCode,
+				}
+			}
 		}
 		streamSetting.HysteriaSettings = hysteriaSettings
 		
@@ -259,7 +274,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 			return nil, err
 		}
 		tlsSettings := &conf.TLSConfig{}
-		tlsSettings.Certs = append(tlsSettings.Certs, &conf.TLSCertConfig{CertFile: certFile, KeyFile: keyFile})
+		tlsSettings.Certs = append(tlsSettings.Certs, &conf.TLSCertConfig{CertFile: certFile, KeyFile: keyFile, OneTimeLoading: false, OcspStapling: uint64(3600)})
 		tlsSettings.RejectUnknownSNI = nodeInfo.TlsSettings.RejectUnknownSni
 		tlsSettings.ServerName = nodeInfo.TlsSettings.ServerName
 		alpn := conf.StringList(nodeInfo.TlsSettings.Alpn)
@@ -301,6 +316,9 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 		if rs.MaxTimeDiff > 0 {
 			realitySettings.MaxTimeDiff = rs.MaxTimeDiff
 		}
+		realitySettings.LimitFallbackUpload = rs.LimitFallbackUpload
+		realitySettings.LimitFallbackDownload = rs.LimitFallbackDownload
+		
 		streamSetting.REALITYSettings = realitySettings
 	}
 

@@ -268,7 +268,7 @@ Fallbacks redirect unrecognised or non-matching connections to another local ser
 }
 ```
 
-#### XHTTP
+#### XHTTP [Beyond REALITY](https://github.com/XTLS/Xray-core/discussions/4113)
 
 XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink traffic into separate HTTP requests. It supports CDN deployments and padding obfuscation to bypass CDN-level traffic detection.
 
@@ -293,7 +293,21 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
       "scMaxBufferedPosts": 30,
       "scMaxEachPostBytes": 1000000,
       "scStreamUpServerSecs": "20-80",
-      "xPaddingBytes": "100-1000"
+      "xPaddingBytes": "100-1000",
+	  "downloadSettings": { // client only
+        "address": "", // another domain/IP
+        "port": 443,
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+                ...
+        },
+        "xhttpSettings": {
+          "path": "/yourpath", // must be the same
+          ...
+        },
+        "sockopt": {} // will be replaced by upload's "sockopt" the latter's "penetrate" is true
+      }
     }
   }
 }
@@ -343,6 +357,20 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
         "hMaxRequestTimes": "600-900",
         "hMaxReusableSecs": "1800-3000",
         "hKeepAlivePeriod": 0
+      },
+	  "downloadSettings": { // client only
+        "address": "", // another domain/IP
+        "port": 443,
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+                ...
+        },
+        "xhttpSettings": {
+          "path": "/yourpath", // must be the same
+          ...
+        },
+        "sockopt": {} // will be replaced by upload's "sockopt" the latter's "penetrate" is true
       }
     }
   }
@@ -878,7 +906,17 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
     "spiderX": "",
     "minClientVer": "",
     "maxClientVer": "",
-    "maxTimeDiff": 0
+    "maxTimeDiff": 0,
+    "limitFallbackUpload": {
+      "afterBytes": 0,
+      "bytesPerSec": 0,
+      "burstBytesPerSec": 0
+    },
+    "limitFallbackDownload": {
+      "afterBytes": 0,
+      "bytesPerSec": 0,
+      "burstBytesPerSec": 0
+    }
   }
 }
 ```
@@ -903,7 +941,17 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
     "spiderX": "",
     "minClientVer": "",
     "maxClientVer": "",
-    "maxTimeDiff": 0
+    "maxTimeDiff": 0,
+    "limitFallbackUpload": {
+      "afterBytes": 0,
+      "bytesPerSec": 0,
+      "burstBytesPerSec": 0
+    },
+    "limitFallbackDownload": {
+      "afterBytes": 0,
+      "bytesPerSec": 0,
+      "burstBytesPerSec": 0
+    }
   },
   "socketSettings": {
     "acceptProxyProtocol": false,

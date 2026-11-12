@@ -36,13 +36,11 @@ func (c *Client) GetServerNodes() (*ServerNodesResponse, error) {
 
 	pollInterval := response.Get("poll_interval").MustInt()
 	version := response.Get("api_version").MustInt()
-	panelType := response.Get("panel_type").MustString()
 
 	return &ServerNodesResponse{
 		Nodes:        nodes,
 		PollInterval: pollInterval,
 		Version:      version,
-		PanelType:    panelType,
 	}, nil
 }
 
@@ -362,9 +360,24 @@ func parseNetworkSettings(
 
 	switch *networkType {
 	case "hysteria":
-		*hysteria = &HysteriaSettings{
+		h := &HysteriaSettings{
 			Version: int32(transportSettings.Get("version").MustInt()),
 		}
+		if v, err := transportSettings.Get("udpIdleTimeout").Int(); err == nil && v > 0 {
+			h.UdpIdleTimeout = int64(v)
+		}
+		if m, ok := transportSettings.CheckGet("masquerade"); ok {
+			raw, err := m.MarshalJSON()
+			if err != nil {
+				return fmt.Errorf("hysteria masquerade: %w", err)
+			}
+			mq := &HysteriaMasquerade{}
+			if err := json.Unmarshal(raw, mq); err != nil {
+				return fmt.Errorf("hysteria masquerade: %w", err)
+			}
+			h.Masquerade = mq
+		}
+		*hysteria = h
 	case "masque":
 		m := &MasqueSettings{}
 		if xmuxData, ok := transportSettings.CheckGet("xmux"); ok {
@@ -691,6 +704,31 @@ func parseSecuritySettings(
 		if v, err := realityData.Get("privateKey").String(); err == nil {
 			reality.PrivateKey = v
 		}
+		
+		if r, ok := realityData.CheckGet("limitFallbackUpload"); ok {
+			raw, err := r.MarshalJSON()
+			if err != nil {
+				return fmt.Errorf("reality limit fallback upload marshal: %w", err)
+			}
+			fu := &LimitFallback{}
+			if err := json.Unmarshal(raw, fu); err != nil {
+				return fmt.Errorf("reality limit fallback upload unmarshal: %w", err)
+			}
+			reality.LimitFallbackUpload = *fu
+		}
+		
+		if r, ok := realityData.CheckGet("limitFallbackDownload"); ok {
+			raw, err := r.MarshalJSON()
+			if err != nil {
+				return fmt.Errorf("reality limit fallback download marshal: %w", err)
+			}
+			fd := &LimitFallback{}
+			if err := json.Unmarshal(raw, fd); err != nil {
+				return fmt.Errorf("reality limit fallback download unmarshal: %w", err)
+			}
+			reality.LimitFallbackDownload = *fd
+		}
+		
 		*realitySettings = reality
 	}
 

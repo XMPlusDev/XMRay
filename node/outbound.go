@@ -196,6 +196,21 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		if nodeInfo.HysteriaSettings != nil {
 			hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
 			hysteriaSettings.Auth = subscription.Passwd
+			hysteriaSettings.UdpIdleTimeout = nodeInfo.HysteriaSettings.UdpIdleTimeout
+			if nodeInfo.HysteriaSettings.Masquerade != nil {
+				m := nodeInfo.HysteriaSettings.Masquerade
+				hysteriaSettings.Masquerade = conf.Masquerade{
+					Type:         m.Type,
+					Dir:          m.Dir,
+					Url:          m.Url,
+					RewriteHost:  m.RewriteHost,
+					XForwarded:   m.XForwarded,
+					Insecure:     m.Insecure,
+					Content:      m.Content,
+					Headers:      m.Headers,
+					StatusCode:   m.StatusCode,
+				}
+			}
 		}
 		streamSetting.HysteriaSettings = hysteriaSettings
 	
