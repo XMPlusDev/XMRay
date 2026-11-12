@@ -294,7 +294,7 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
       "scMaxEachPostBytes": 1000000,
       "scStreamUpServerSecs": "20-80",
       "xPaddingBytes": "100-1000",
-	  "downloadSettings": { // client only
+      "downloadSettings": { // client only
         "address": "", // another domain/IP
         "port": 443,
         "network": "xhttp",
@@ -358,7 +358,7 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
         "hMaxReusableSecs": "1800-3000",
         "hKeepAlivePeriod": 0
       },
-	  "downloadSettings": { // client only
+      "downloadSettings": { // client only
         "address": "", // another domain/IP
         "port": 443,
         "network": "xhttp",
@@ -421,7 +421,21 @@ These fields enable obfuscation of the padding pattern to bypass CDN-level traff
       "seqKey": "",
       "uplinkDataPlacement": "",
       "uplinkDataKey": "",
-      "uplinkChunkSize": ""
+      "uplinkChunkSize": "",
+      "downloadSettings": { // client only
+        "address": "", // another domain/IP
+        "port": 443,
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+                ...
+        },
+        "xhttpSettings": {
+          "path": "/yourpath", // must be the same
+          ...
+        },
+        "sockopt": {} // will be replaced by upload's "sockopt" the latter's "penetrate" is true
+      }
     }
   }
 }
