@@ -614,8 +614,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 
 `maskSettings` is optional and applies transport-level obfuscation. All three fields (`tcp`, `udp`, `quicParams`) are optional and can be used independently or together.
 
-#### TCP mask types: `header-custom`, `fragment`, `sudoku`
-#### UDP mask types:  `mkcp-legacy`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`,`udphop`
+#### TCP mask types: `header-custom`, `fragment`, `sudoku`, 'filter'
+#### UDP mask types:  `header-custom`, `mkcp-legacy`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`,`udphop`, 'filter'
 
 > **`salamander` packetSize (Gecko mode):** add an optional `"packetSize": "<min>-<max>"` to the `salamander` settings (Hysteria v2.9.2+) to enable the Gecko obfuscator, which fragments packets into randomly-sized chunks within the given byte range to resist traffic analysis. Omit `packetSize` to use the classic Salamander obfuscator. This field must match exactly between server and client.
 
@@ -627,9 +627,9 @@ Choose names that blend in with real CDN traffic. Some suggestions:
         "type": "fragment",
         "settings": {
           "packets": "tlshello",
-          "length": { "from": 100, "to": 200 },
-          "delay": { "from": 10, "to": 20 },
-          "maxSplit": { "from": 0, "to": 0 }
+          "lengths": ["3-5", "6-8", "10-20"],
+          "delays": ["10-20"],
+          "maxSplit": "3-6"
         }
       }
     ],
@@ -637,13 +637,14 @@ Choose names that blend in with real CDN traffic. Some suggestions:
       {
         "type": "noise",
         "settings": {
-          "reset": { "from": 0, "to": 0 },
+          "reset": "30-60",
           "noise": [
             {
-              "type": "str",
-              "packet": "GET / HTTP/1.1\r\n",
-              "rand": { "from": 0, "to": 0 },
-              "delay": { "from": 10, "to": 50 }
+              "type": "array",
+              "packet": [],
+              "rand": "1-8192",
+              "randRange": "0-255",
+              "delay": "10-20"
             }
           ]
         }
@@ -663,10 +664,10 @@ Choose names that blend in with real CDN traffic. Some suggestions:
       "keepAlivePeriod": 10,
       "disablePathMTUDiscovery": false,
       "maxIncomingStreams": 100,
-	  "brutalDisableLossCompensation": true,
-	  "disableChromeParrot":true,
-	  "disableGSO": false,
-	  "disableStatelessReset": false
+      "brutalDisableLossCompensation": true,
+      "disableChromeParrot":true,
+      "disableGSO": false,
+      "disableStatelessReset": false
     }
   }
 }
@@ -817,14 +818,14 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
   "tlsSettings": {
     "alpn": ["h2", "http/1.1"],
     "certMode": "http",
-	"certEmail": "author@cert.xyz",
+    "certEmail": "author@cert.xyz",
     "certDomainName": "tld.dev",
-	"dnsProvider": "cloudflare",
+    "dnsProvider": "cloudflare",
 	"certFile": "/etc/XMRay/node3.crt",
     "keyFile": "/etc/XMRay/node3.key",
-	"cipherSuites": "",
-	"minVersion": "1.2",
-	"maxVersion": "1.3",
+    "cipherSuites": "",
+    "minVersion": "1.2",
+    "maxVersion": "1.3",
     "fragment": "1,40-60,30-50",
     "serverName": "google.com",
     "fingerprint": "chrome",
@@ -846,14 +847,14 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
   "tlsSettings": {
     "alpn": ["h2", "http/1.1"],
     "certMode": "http",
-	"certEmail": "author@cert.xyz",
+    "certEmail": "author@cert.xyz",
     "certDomainName": "tld.dev",
-	"dnsProvider": "cloudflare",
+    "dnsProvider": "cloudflare",
 	"certFile": "/etc/XMRay/node3.crt",
     "keyFile": "/etc/XMRay/node3.key",
-	"cipherSuites": "",
-	"minVersion": "1.2",
-	"maxVersion": "1.3",
+    "cipherSuites": "",
+    "minVersion": "1.2",
+    "maxVersion": "1.3",
     "fragment": "1,40-60,30-50",
     "serverName": "google.com",
     "fingerprint": "chrome",
