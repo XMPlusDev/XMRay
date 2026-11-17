@@ -35,7 +35,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 		inboundDetourConfig.ListenOn = &conf.Address{Address: ipAddress}
 	}
 
-	portRanges, err := parsePortString(nodeInfo.ListeningPort)
+	portRanges, err := api.ParsePortString(nodeInfo.ListeningPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse listening port: %w", err)
 	}
@@ -147,18 +147,19 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string, pusher f
 			hysteriaSettings.Version = nodeInfo.HysteriaSettings.Version
 			hysteriaSettings.UdpIdleTimeout = nodeInfo.HysteriaSettings.UdpIdleTimeout
 			if nodeInfo.HysteriaSettings.Masquerade != nil {
-				m := nodeInfo.HysteriaSettings.Masquerade
-				hysteriaSettings.Masquerade = conf.Masquerade{
-					Type:         m.Type,
-					Dir:          m.Dir,
-					Url:          m.Url,
-					RewriteHost:  m.RewriteHost,
-					XForwarded:   m.XForwarded,
-					Insecure:     m.Insecure,
-					Content:      m.Content,
-					Headers:      m.Headers,
-					StatusCode:   m.StatusCode,
-				}
+				hysteriaSettings.Masquerade = *nodeInfo.HysteriaSettings.Masquerade
+				//m := nodeInfo.HysteriaSettings.Masquerade
+				//hysteriaSettings.Masquerade = conf.Masquerade{
+				//	Type:         m.Type,
+				//	Dir:          m.Dir,
+				//	Url:          m.Url,
+				//	RewriteHost:  m.RewriteHost,
+				//	XForwarded:   m.XForwarded,
+				//	Insecure:     m.Insecure,
+				//	Content:      m.Content,
+				//	Headers:      m.Headers,
+				//	StatusCode:   m.StatusCode,
+				//}
 			}
 		}
 		streamSetting.HysteriaSettings = hysteriaSettings

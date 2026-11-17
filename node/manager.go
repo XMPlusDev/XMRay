@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
@@ -222,42 +221,6 @@ func (m *Manager) removeRouterRule(tag string) error {
 	return m.router.RemoveRule(tag)
 }
 
-// parsePortString is also needed by router.go in this package.
-func parsePortString(portStr string) ([]conf.PortRange, error) {
-	if portStr == "" {
-		return nil, fmt.Errorf("port string is empty")
-	}
-	var portRanges []conf.PortRange
-	for _, segment := range strings.Split(portStr, ",") {
-		segment = strings.TrimSpace(segment)
-		if segment == "" {
-			continue
-		}
-		if strings.Contains(segment, "-") {
-			parts := strings.SplitN(segment, "-", 2)
-			from, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port in range: %s", parts[0])
-			}
-			to, err := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port in range: %s", parts[1])
-			}
-			if from > to {
-				return nil, fmt.Errorf("start port %d > end port %d", from, to)
-			}
-			portRanges = append(portRanges, conf.PortRange{From: uint32(from), To: uint32(to)})
-		} else {
-			port, err := strconv.ParseUint(segment, 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port number: %s", segment)
-			}
-			portRanges = append(portRanges, conf.PortRange{From: uint32(port), To: uint32(port)})
-		}
-	}
-	return portRanges, nil
-}
-
 // CheckShadowsocksPassword validates and derives the SS2022 user key.
 // Exported so that subscription/builders.go can call it instead of duplicating.
 func CheckShadowsocksPassword(password string, method string) (string, error) {
@@ -346,3 +309,4 @@ func buildSocketConfig(s *api.SocketSettings, isInbound bool) *conf.SocketConfig
 	}
 	return sc
 }
+

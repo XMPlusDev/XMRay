@@ -358,9 +358,13 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 	}
 
 	if sc.hasBucket {
-		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
+		link.Writer = ld.limiter.RateWriter(ctx, link.Writer, sc.bucket)
+		if tr, ok := link.Reader.(buf.TimeoutReader); ok {
+			link.Reader = ld.limiter.RateTimeoutReader(ctx, tr, sc.bucket)
+		} else {
+			link.Reader = ld.limiter.RateReader(ctx, link.Reader, sc.bucket)
+		}
 	}
-
 	return nil
 }
 
@@ -374,8 +378,8 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 	}
 
 	if sc.hasBucket {
-		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
-		link.Reader = ld.limiter.RateTimeoutReader(twr, sc.bucket)
+		link.Writer = ld.limiter.RateWriter(ctx, link.Writer, sc.bucket)
+		link.Reader = ld.limiter.RateTimeoutReader(ctx, twr, sc.bucket)
 	}
 
 	return link, nil

@@ -71,74 +71,72 @@ func BlackHoleRouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config,
 		return nil, fmt.Errorf("nodeInfo is nil")
 	}
 
+	strList := func(v []string) *conf.StringList {
+		if len(v) == 0 {
+			return nil
+		}
+		l := conf.StringList(v)
+		return &l
+	}
+
+	networkList := func(v []string) *conf.NetworkList {
+		if len(v) == 0 {
+			return nil
+		}
+		l := make(conf.NetworkList, 0, len(v))
+		for _, n := range v {
+			l = append(l, conf.Network(n))
+		}
+		return &l
+	}
+
 	routerConfig := &conf.RouterConfig{}
-	var ruleListJSON []json.RawMessage
+	inboundTag := conf.StringList{tag}
+	outboundTag := fmt.Sprintf("%s_blackhole", tag)
 
-	hasBlockingRules := nodeInfo.BlockingRules != nil &&
-		((nodeInfo.BlockingRules.Port != "" && nodeInfo.BlockingRules.Port != "0") ||
-			len(nodeInfo.BlockingRules.Domain) > 0 ||
-			len(nodeInfo.BlockingRules.IP) > 0 ||
-			len(nodeInfo.BlockingRules.Protocol) > 0)
-
-	if hasBlockingRules {
-		InboundTag := conf.StringList{tag}
-
-		var portRanges []conf.PortRange
-		var err error
-		if nodeInfo.BlockingRules.Port != "" && nodeInfo.BlockingRules.Port != "0" {
-			portRanges, err = parsePortString(nodeInfo.BlockingRules.Port)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse port string: %w", err)
-			}
+	for i, r := range nodeInfo.BlockingRules {
+		id := r.ID
+		if id <= 0 {
+			id = i
 		}
 
-		var domain *conf.StringList
-		if len(nodeInfo.BlockingRules.Domain) > 0 {
-			d := conf.StringList(nodeInfo.BlockingRules.Domain)
-			domain = &d
-		}
-		var ip *conf.StringList
-		if len(nodeInfo.BlockingRules.IP) > 0 {
-			i := conf.StringList(nodeInfo.BlockingRules.IP)
-			ip = &i
-		}
-		var protocols *conf.StringList
-		if len(nodeInfo.BlockingRules.Protocol) > 0 {
-			p := conf.StringList(nodeInfo.BlockingRules.Protocol)
-			protocols = &p
-		}
 		var portList *conf.PortList
-		if len(portRanges) > 0 {
-			portList = &conf.PortList{Range: portRanges}
+		if len(r.Port) > 0 {
+			ranges, err := api.ParsePorts(r.Port)
+			if err != nil {
+				return nil, fmt.Errorf("blocking rule %d: failed to parse port: %w", r.ID, err)
+			}
+			portList = &conf.PortList{Range: ranges}
 		}
 
 		blockingRule := struct {
-			Type        string           `json:"type"`
-			RuleTag     string           `json:"ruleTag"`
-			InboundTag  *conf.StringList `json:"inboundTag"`
-			OutboundTag string           `json:"outboundTag"`
-			Domain      *conf.StringList `json:"domain,omitempty"`
-			IP          *conf.StringList `json:"ip,omitempty"`
-			Port        *conf.PortList   `json:"port,omitempty"`
-			Protocols   *conf.StringList `json:"protocol,omitempty"`
+			Type        string            `json:"type"`
+			RuleTag     string            `json:"ruleTag"`
+			InboundTag  *conf.StringList  `json:"inboundTag"`
+			OutboundTag string            `json:"outboundTag"`
+			Domain      *conf.StringList  `json:"domain,omitempty"`
+			IP          *conf.StringList  `json:"ip,omitempty"`
+			Network     *conf.NetworkList `json:"network,omitempty"`
+			Port        *conf.PortList    `json:"port,omitempty"`
+			Protocols   *conf.StringList  `json:"protocol,omitempty"`
 		}{
 			Type:        "field",
-			RuleTag:     fmt.Sprintf("%s_blackhole", tag),
-			InboundTag:  &InboundTag,
-			OutboundTag: fmt.Sprintf("%s_blackhole", tag),
-			Domain:      domain,
-			IP:          ip,
-			Protocols:   protocols,
+			RuleTag:     fmt.Sprintf("%s_blackhole_%d", tag, id),
+			InboundTag:  &inboundTag,
+			OutboundTag: outboundTag,
+			Domain:      strList(r.Domain),
+			IP:          strList(r.IP),
+			Network:     networkList(r.Network),
 			Port:        portList,
+			Protocols:   strList(r.Protocol),
 		}
 
 		rule, err := json.Marshal(blockingRule)
 		if err != nil {
-			return nil, fmt.Errorf("marshal blocking rule config failed: %s", err)
+			return nil, fmt.Errorf("marshal blocking rule %d failed: %w", r.ID, err)
 		}
-		ruleListJSON = append(ruleListJSON, rule)
+		routerConfig.RuleList = append(routerConfig.RuleList, rule)
 	}
 
-	routerConfig.RuleList = ruleListJSON
 	return routerConfig.Build()
 }

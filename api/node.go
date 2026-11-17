@@ -204,7 +204,11 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 		return nil, err
 	}
 
-	nodeInfo.BlockingRules = parseBlockingRules(ruleData)
+	blockingRules, err := parseBlockingRules(ruleData)
+	if err != nil {
+		return nil, fmt.Errorf("parse rules: %w", err)
+	}
+	nodeInfo.BlockingRules = blockingRules
 
 	if nodeInfo.NodeType == "vless" || nodeInfo.NodeType == "trojan" {
 		nodeInfo.FallbackConfigs = parseFallbackConfigs(transportData)
@@ -824,29 +828,101 @@ func parseFinalRules(securityData *simplejson.Json) []FinalRuleSettings {
 	return rules
 }
 
-func parseBlockingRules(ruleData *simplejson.Json) *BlockingRules {
-	rules := &BlockingRules{}
-	if ipData, ok := ruleData.CheckGet("ip"); ok {
-		if arr, err := ipData.StringArray(); err == nil {
-			rules.IP = arr
+// parseBlockingRules reads the panel rule list and keeps the block rules.
+// It returns an error on an unexpected shape (for example an old panel that
+// still sends the grouped object), so a node never starts without its rules.
+// parseBlockingRules reads the panel rule list and keeps the block rules.
+func parseBlockingRules(ruleData *simplejson.Json) ([]BlockingRule, error) {
+	arr, err := ruleData.Array()
+	if err != nil {
+		return nil, fmt.Errorf("rules must be an array, is the panel up to date? %w", err)
+	}
+
+	rules := make([]BlockingRule, 0, len(arr))
+	for i := range arr {
+		item := ruleData.GetIndex(i)
+		v, ok := item.CheckGet("value")
+		if !ok {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(v.Get("outboundTag").MustString()), "block") {
+			continue
+		}
+
+		r := BlockingRule{
+			ID:       item.Get("id").MustInt(),
+			Domain:   stringList(v, "domain"),
+			IP:       stringList(v, "ip"),
+			Protocol: stringList(v, "protocol"),
+		}
+
+		if r.Network, err = normalizeNetworks(csvList(v, "network")); err != nil {
+			return nil, fmt.Errorf("rule %d: %w", r.ID, err)
+		}
+
+		// "0" used to mean "no port condition", keep ignoring it.
+		for _, p := range csvList(v, "port") {
+			if p != "0" {
+				r.Port = append(r.Port, p)
+			}
+		}
+		if len(r.Port) > 0 {
+			if _, err := ParsePorts(r.Port); err != nil {
+				return nil, fmt.Errorf("rule %d: %w", r.ID, err)
+			}
+		}
+
+		// A rule with no condition would block everything on the node, skip it.
+		if len(r.Domain)+len(r.IP)+len(r.Protocol)+len(r.Network)+len(r.Port) == 0 {
+			continue
+		}
+		rules = append(rules, r)
+	}
+	return rules, nil
+}
+
+func stringList(j *simplejson.Json, key string) []string {
+	v, ok := j.CheckGet(key)
+	if !ok {
+		return nil
+	}
+	var raw []string
+	if arr, err := v.StringArray(); err == nil {
+		raw = arr
+	} else if s, err := v.String(); err == nil {
+		raw = []string{s}
+	}
+	out := make([]string, 0, len(raw))
+	for _, s := range raw {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
 		}
 	}
-	if domainData, ok := ruleData.CheckGet("domain"); ok {
-		if arr, err := domainData.StringArray(); err == nil {
-			rules.Domain = arr
+	return out
+}
+
+func csvList(j *simplejson.Json, key string) []string {
+	var out []string
+	for _, s := range stringList(j, key) {
+		for _, p := range strings.Split(s, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				out = append(out, p)
+			}
 		}
 	}
-	if portData, ok := ruleData.CheckGet("port"); ok {
-		if s, err := portData.String(); err == nil {
-			rules.Port = s
+	return out
+}
+
+func normalizeNetworks(list []string) ([]string, error) {
+	out := make([]string, 0, len(list))
+	for _, n := range list {
+		n = strings.ToLower(strings.TrimSpace(n))
+		if n != "tcp" && n != "udp" {
+			return nil, fmt.Errorf("unsupported network %q", n)
 		}
+		out = append(out, n)
 	}
-	if protocolData, ok := ruleData.CheckGet("protocol"); ok {
-		if arr, err := protocolData.StringArray(); err == nil {
-			rules.Protocol = arr
-		}
-	}
-	return rules
+	return out, nil
 }
 
 func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) error {
@@ -1053,7 +1129,7 @@ func expandPortRange(p string) ([]uint32, error) {
 	return []uint32{uint32(port)}, nil
 }
 
-func parsePortString(portStr string) ([]conf.PortRange, error) {
+func ParsePortString(portStr string) ([]conf.PortRange, error) {
 	if portStr == "" {
 		return nil, fmt.Errorf("port string is empty")
 	}

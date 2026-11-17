@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
+	"github.com/xtls/xray-core/infra/conf"
 )
 
 type Client struct {
@@ -111,4 +113,50 @@ func (c *Client) checkResponse(res *resty.Response, err error) (*simplejson.Json
 	}
 
 	return result, nil
+}
+
+// ParsePorts turns ["53", "443", "1000-2000"] into port ranges.
+// An entry may also hold a comma list ("53,443"), which older panel rows used.
+func ParsePorts(ports []string) ([]conf.PortRange, error) {
+	parse := func(s string) (uint32, error) {
+		n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 16) // 16 bits: max 65535
+		if err != nil || n == 0 {
+			return 0, fmt.Errorf("invalid port number: %s", s)
+		}
+		return uint32(n), nil
+	}
+
+	var ranges []conf.PortRange
+	for _, entry := range ports {
+		for _, seg := range strings.Split(entry, ",") {
+			seg = strings.TrimSpace(seg)
+			if seg == "" {
+				continue
+			}
+			if i := strings.Index(seg, "-"); i >= 0 {
+				from, err := parse(seg[:i])
+				if err != nil {
+					return nil, err
+				}
+				to, err := parse(seg[i+1:])
+				if err != nil {
+					return nil, err
+				}
+				if from > to {
+					return nil, fmt.Errorf("start port %d > end port %d", from, to)
+				}
+				ranges = append(ranges, conf.PortRange{From: from, To: to})
+				continue
+			}
+			p, err := parse(seg)
+			if err != nil {
+				return nil, err
+			}
+			ranges = append(ranges, conf.PortRange{From: p, To: p})
+		}
+	}
+	if len(ranges) == 0 {
+		return nil, fmt.Errorf("port list is empty")
+	}
+	return ranges, nil
 }

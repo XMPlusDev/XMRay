@@ -91,10 +91,13 @@ type Subscription struct {
 	Iplimit    int    `json:"ip_limit"`
 }
 
-type BlockingRules struct {
+// BlockingRule is one panel rule whose outbound is "block".
+type BlockingRule struct {
+	ID       int
 	Domain   []string
 	IP       []string
-	Port     string
+	Network  []string 
+	Port     []string 
 	Protocol []string
 }
 
@@ -329,7 +332,7 @@ type NodeInfo struct {
 	RealitySettings  *RealitySettings
 	TlsSettings      *TlsSettings
 	RelayNodeInfo    *RelayNodeInfo
-	BlockingRules    *BlockingRules
+	BlockingRules    []BlockingRule
 	MaskSettings     *MaskSettings
 	HysteriaSettings *HysteriaSettings
 	MasqueSettings   *MasqueSettings
