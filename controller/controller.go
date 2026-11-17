@@ -463,7 +463,6 @@ func (c *Controller) apiMonitor() (err error) {
 		}
 	}
 
-	c.subscriptionList = newSubscriptionInfo
 	relayErr := c.syncRelay(newNodeInfo, newSubscriptionInfo, nodeInfoChanged || subscriptionChanged)
 	c.subscriptionList = newSubscriptionInfo
 	if relayErr != nil {
