@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	SubscriptionNotModified = "subscriptions not modified"
-	NodeNotModified         = "node not modified"
-	RuleNotModified         = "rules not modified"
+	SubscriptionNotModified = "subscriptions_not_modified"
+	NodeNotModified         = "node_not_modified"
+	RuleNotModified         = "rules_not_modified"
 )
 
 type Config struct {
@@ -54,7 +54,6 @@ type server struct {
 	Speedlimit       int              `json:"speed_limit"`
 	NetworkSettings  *json.RawMessage `json:"transportSettings"`
 	SecuritySettings *json.RawMessage `json:"securitySettings"`
-	Rules            *json.RawMessage `json:"rules"`
 }
 
 type transitServer struct {
@@ -332,7 +331,6 @@ type NodeInfo struct {
 	RealitySettings  *RealitySettings
 	TlsSettings      *TlsSettings
 	RelayNodeInfo    *RelayNodeInfo
-	BlockingRules    []BlockingRule
 	MaskSettings     *MaskSettings
 	HysteriaSettings *HysteriaSettings
 	MasqueSettings   *MasqueSettings

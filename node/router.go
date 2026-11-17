@@ -9,7 +9,7 @@ import (
 	"github.com/xmplusdev/xmray/api"
 )
 
-func RelayRouterBuilder(tag string, relayTag string, subscription *api.SubscriptionInfo) (*router.Config, error) {
+func RelayRouterBuilder(tag string, relayTag string, subscription *api.SubscriptionInfo, ruleTag string) (*router.Config, error) {
 	if subscription == nil {
 		return nil, fmt.Errorf("subscription is nil")
 	}
@@ -25,7 +25,7 @@ func RelayRouterBuilder(tag string, relayTag string, subscription *api.Subscript
 		OutboundTag string           `json:"outboundTag"`
 		User        *conf.StringList `json:"user"`
 	}{
-		RuleTag:     fmt.Sprintf("%s_%d", relayTag, subscription.Id),
+		RuleTag:     ruleTag,
 		Type:        "field",
 		InboundTag:  &InboundTag,
 		OutboundTag: fmt.Sprintf("%s_%d", relayTag, subscription.Id),
@@ -41,33 +41,8 @@ func RelayRouterBuilder(tag string, relayTag string, subscription *api.Subscript
 	return routerConfig.Build()
 }
 
-func DefaultRouterBuilder(tag string) (*router.Config, error) {
-	routerConfig := &conf.RouterConfig{}
-	InboundTag := conf.StringList{tag}
-
-	defaultRule := struct {
-		Type        string           `json:"type"`
-		RuleTag     string           `json:"ruleTag"`
-		InboundTag  *conf.StringList `json:"inboundTag"`
-		OutboundTag string           `json:"outboundTag"`
-	}{
-		Type:        "field",
-		RuleTag:     fmt.Sprintf("%s_default", tag),
-		InboundTag:  &InboundTag,
-		OutboundTag: tag,
-	}
-
-	rule, err := json.Marshal(defaultRule)
-	if err != nil {
-		return nil, fmt.Errorf("marshal default rule config failed: %s", err)
-	}
-
-	routerConfig.RuleList = []json.RawMessage{rule}
-	return routerConfig.Build()
-}
-
-func BlackHoleRouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config, error) {
-	if nodeInfo == nil {
+func BlackHoleRouterBuilder(rules []api.BlockingRule, tag string, gen int) (*router.Config, error) {
+	if rules == nil {
 		return nil, fmt.Errorf("nodeInfo is nil")
 	}
 
@@ -94,12 +69,7 @@ func BlackHoleRouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config,
 	inboundTag := conf.StringList{tag}
 	outboundTag := fmt.Sprintf("%s_blackhole", tag)
 
-	for i, r := range nodeInfo.BlockingRules {
-		id := r.ID
-		if id <= 0 {
-			id = i
-		}
-
+	for i, r := range rules {
 		var portList *conf.PortList
 		if len(r.Port) > 0 {
 			ranges, err := api.ParsePorts(r.Port)
@@ -121,7 +91,7 @@ func BlackHoleRouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config,
 			Protocols   *conf.StringList  `json:"protocol,omitempty"`
 		}{
 			Type:        "field",
-			RuleTag:     fmt.Sprintf("%s_blackhole_%d", tag, id),
+			RuleTag:     blockRuleTag(tag, gen, r.ID, i),
 			InboundTag:  &inboundTag,
 			OutboundTag: outboundTag,
 			Domain:      strList(r.Domain),

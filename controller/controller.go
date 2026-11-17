@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/xtls/xray-core/core"
@@ -35,6 +36,7 @@ type Controller struct {
 	LogPrefix     string
 	RelayTag      string
 	Relay         bool
+	blockRules   []api.BlockingRule
 
 	currentPollInterval time.Duration
 	subscriptionList    *[]api.SubscriptionInfo
@@ -47,6 +49,12 @@ type Controller struct {
 	intervalChangeCh        chan time.Duration
 	triggerCtx              context.Context
 	triggerCancel           context.CancelFunc
+	
+	mu           sync.Mutex
+	pendingRules []api.BlockingRule
+	hasPending   bool
+	relayGen     int
+	relaySubs    *[]api.SubscriptionInfo 
 }
 
 func New(server *core.Instance, api api.API, config *node.Config, d *dispatcher.LimitingDispatcher, pusher func(string, any) error) *Controller {
@@ -101,33 +109,20 @@ func (c *Controller) Start() error {
 		return err
 	}
 	c.subscriptionList = subscriptionInfo
-
-	c.Relay = false
-
-	if c.nodeInfo.RelayType == 1 && c.nodeInfo.RelayNodeID > 0 {
-		newRelayNodeInfo, err := c.client.GetTransitNode()
-		if err != nil {
-			log.Panic(err)
-			return nil
-		}
-		c.relaynodeInfo = newRelayNodeInfo
-		c.RelayTag = c.buildRNodeTag()
-
-		if err = c.nodeManager.AddRelayTag(newRelayNodeInfo, c.RelayTag, c.Tag, c.subscriptionList); err != nil {
-			log.Panic(err)
-			return err
-		}
-		c.Relay = true
+	
+	blockRules, err := c.client.GetBlockRules()
+	if err != nil {
+		return fmt.Errorf("GetBlockRules: %w", err)
 	}
+	c.blockRules = blockRules
 
-	if err = c.nodeManager.AddBlackHoleRuleTag(c.nodeInfo, c.Tag); err != nil {
+	if err = c.nodeManager.AddTag(c.nodeInfo, c.blockRules, c.Tag, c.config, c.nodePusher()); err != nil {
 		log.Panic(err)
 		return err
 	}
 
-	if err = c.nodeManager.AddTag(c.nodeInfo, c.Tag, c.config, c.nodePusher()); err != nil {
-		log.Panic(err)
-		return err
+	if err = c.syncRelay(c.nodeInfo, c.subscriptionList, true); err != nil {
+		return fmt.Errorf("relay: %w", err)
 	}
 
 	if err = c.subManager.AddNewSubscription(subscriptionInfo, newNodeInfo, c.Tag); err != nil {
@@ -162,6 +157,7 @@ func (c *Controller) Start() error {
 
 		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "server_status", serverStatusReportInterval, c.serverMonitor))
 	}
+	c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "rules", c.currentPollInterval, c.ruleMonitor))
 
 	c.addCertTasks()
 
@@ -179,14 +175,7 @@ func (c *Controller) Close() error {
 	if err := c.nodeManager.RemoveTag(c.Tag); err != nil {
 		log.Printf("%s Close RemoveTag: %v", c.logPrefix(), err)
 	}
-	if c.Relay {
-		if err := c.nodeManager.RemoveRelayRules(c.RelayTag, c.subscriptionList); err != nil {
-			log.Printf("%s Close RemoveRelayRules: %v", c.logPrefix(), err)
-		}
-		if err := c.nodeManager.RemoveRelayTag(c.RelayTag, c.subscriptionList); err != nil {
-			log.Printf("%s Close RemoveRelayTag: %v", c.logPrefix(), err)
-		}
-	}
+	c.teardownRelay()
 	return c.taskManager.CloseAll()
 }
 
@@ -267,7 +256,41 @@ func nodeInfoChangedStructurally(old, new *api.NodeInfo) bool {
 	return !reflect.DeepEqual(o, n)
 }
 
+func (c *Controller) ruleMonitor() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	rules, err := c.client.GetBlockRules()
+	switch {
+	case err == nil:
+		c.pendingRules, c.hasPending = rules, true
+	case err.Error() == api.RuleNotModified:
+		if !c.hasPending {
+			return nil
+		}
+	default:
+		log.Printf("%s GetBlockRules error: %v", c.LogPrefix, err)
+		return err
+	}
+
+	relayTag := ""
+	if c.Relay {
+		relayTag = c.RelayTag
+	}
+	if err := c.nodeManager.ReplaceBlockRules(c.Tag, c.pendingRules, relayTag); err != nil {
+		log.Printf("%s ReplaceBlockRules error: %v", c.LogPrefix, err)
+		return err
+	}
+	c.blockRules = c.pendingRules
+	c.pendingRules, c.hasPending = nil, false
+	log.Printf("%s updated %d block rules", c.LogPrefix, len(c.blockRules))
+	return nil
+}
+
 func (c *Controller) apiMonitor() (err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
 	nodeInfoChanged := true
 	newNodeInfo, err := c.client.GetNodeInfo()
 	if err != nil {
@@ -292,21 +315,12 @@ func (c *Controller) apiMonitor() (err error) {
 		}
 	}
 
-	infoUpdated := subscriptionChanged || nodeInfoChanged
-
-	if c.Relay && infoUpdated {
-		if err := c.nodeManager.RemoveRelayRules(c.RelayTag, c.subscriptionList); err != nil {
-			log.Printf("%s Controller APIMonitor RemoveRelayRules: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor RemoveRelayRules: %w", err)
-		}
-		if err := c.nodeManager.RemoveRelayTag(c.RelayTag, c.subscriptionList); err != nil {
-			log.Printf("%s Controller APIMonitor RemoveRelayTag: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor RemoveRelayTag: %w", err)
-		}
-		c.Relay = false
+	structural := nodeInfoChanged && nodeInfoChangedStructurally(c.nodeInfo, newNodeInfo)
+	if structural {
+		c.teardownRelay()
 	}
 
-	if nodeInfoChanged && nodeInfoChangedStructurally(c.nodeInfo, newNodeInfo) {
+	if structural {
 		oldTag := c.Tag
 		if err := c.nodeManager.RemoveBlockingRules(oldTag); err != nil {
 			log.Printf("%s Controller APIMonitor RemoveBlockingRules: %v", c.LogPrefix, err)
@@ -320,30 +334,10 @@ func (c *Controller) apiMonitor() (err error) {
 		c.Tag = c.buildNodeTag()
 		c.LogPrefix = c.logPrefix()
 		c.syncCertTasks()
-
-		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 {
-			newRelayNodeInfo, err := c.client.GetTransitNode()
-			if err != nil {
-				log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-				return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
-			}
-			c.relaynodeInfo = newRelayNodeInfo
-			c.RelayTag = c.buildRNodeTag()
-
-			if err := c.nodeManager.AddRelayTag(newRelayNodeInfo, c.RelayTag, c.Tag, newSubscriptionInfo); err != nil {
-				log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
-				return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
-			}
-			c.Relay = true
-		}
-
-		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config, c.nodePusher()); err != nil {
+		
+		if err := c.nodeManager.AddTag(newNodeInfo, c.blockRules, c.Tag, c.config, c.nodePusher()); err != nil {
 			log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
 			return fmt.Errorf("Controller APIMonitor AddInboundTag: %w", err)
-		}
-
-		if err := c.nodeManager.AddBlackHoleRuleTag(newNodeInfo, c.Tag); err != nil {
-			log.Printf("%s Controller APIMonitor AddBlackHoleRuleTag: %v", c.LogPrefix, err)
 		}
 
 		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
@@ -428,22 +422,6 @@ func (c *Controller) apiMonitor() (err error) {
 		}
 
 		if subscriptionChanged {
-			if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && !c.Relay {
-				newRelayNodeInfo, err := c.client.GetTransitNode()
-				if err != nil {
-					log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-					return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
-				}
-				c.relaynodeInfo = newRelayNodeInfo
-				c.RelayTag = c.buildRNodeTag()
-
-				if err := c.nodeManager.AddRelayTag(newRelayNodeInfo, c.RelayTag, c.Tag, newSubscriptionInfo); err != nil {
-					log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
-					return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
-				}
-				c.Relay = true
-			}
-
 			deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
 
 			if len(deleted) > 0 {
@@ -486,6 +464,12 @@ func (c *Controller) apiMonitor() (err error) {
 	}
 
 	c.subscriptionList = newSubscriptionInfo
+	relayErr := c.syncRelay(newNodeInfo, newSubscriptionInfo, nodeInfoChanged || subscriptionChanged)
+	c.subscriptionList = newSubscriptionInfo
+	if relayErr != nil {
+		log.Printf("%s Controller APIMonitor syncRelay: %v", c.LogPrefix, relayErr)
+		return relayErr
+	}
 	return nil
 }
 
@@ -584,7 +568,7 @@ func (c *Controller) nodePusher() func(string, any) error {
 }
 
 func (c *Controller) buildRNodeTag() string {
-	return fmt.Sprintf("Relay_%s_%d_%d", c.relaynodeInfo.NodeType, c.relaynodeInfo.ListeningPort, c.relaynodeInfo.NodeID)
+	return fmt.Sprintf("Relay_%s_%d_%d_v%d", c.relaynodeInfo.NodeType, c.relaynodeInfo.ListeningPort, c.relaynodeInfo.NodeID, c.relayGen)
 }
 
 func (c *Controller) selfSignedCertMonitor() error {
@@ -596,4 +580,56 @@ func (c *Controller) selfSignedCertMonitor() error {
         log.Printf("%s self-signed cert renewal failed: %v", c.LogPrefix, err)
     }
     return nil
+}
+
+func (c *Controller) teardownRelay() {
+	if !c.Relay {
+		return
+	}
+	if err := c.nodeManager.RemoveRelayRules(c.RelayTag, c.relaySubs); err != nil {
+		log.Printf("%s RemoveRelayRules: %v", c.LogPrefix, err)
+	}
+	if err := c.nodeManager.RemoveRelayTag(c.RelayTag, c.relaySubs); err != nil {
+		log.Printf("%s RemoveRelayTag: %v", c.LogPrefix, err)
+	}
+	c.Relay, c.relaynodeInfo, c.relaySubs = false, nil, nil
+}
+
+func (c *Controller) syncRelay(info *api.NodeInfo, subs *[]api.SubscriptionInfo, rebuild bool) error {
+	if info.RelayType != 1 || info.RelayNodeID <= 0 {
+		c.teardownRelay()
+		return nil
+	}
+	if c.Relay && !rebuild {
+		return nil
+	}
+
+	fresh, err := c.client.GetTransitNode()
+	if err != nil {
+		return fmt.Errorf("GetTransitNode: %w", err)
+	}
+
+	oldOn, oldTag, oldSubs, oldInfo := c.Relay, c.RelayTag, c.relaySubs, c.relaynodeInfo
+
+	c.relayGen++
+	c.relaynodeInfo = fresh
+	newTag := c.buildRNodeTag()
+
+	if err := c.nodeManager.AddRelayTag(fresh, newTag, c.Tag, subs); err != nil {
+		_ = c.nodeManager.RemoveRelayRules(newTag, subs)
+		_ = c.nodeManager.RemoveRelayTag(newTag, subs)
+		c.relaynodeInfo = oldInfo 
+		return fmt.Errorf("AddRelayTag: %w", err)
+	}
+	c.RelayTag, c.relaySubs, c.Relay = newTag, subs, true
+
+	if oldOn {
+		if err := c.nodeManager.RemoveRelayRules(oldTag, oldSubs); err != nil {
+			log.Printf("%s RemoveRelayRules (old): %v", c.LogPrefix, err)
+		}
+		if err := c.nodeManager.RemoveRelayTag(oldTag, oldSubs); err != nil {
+			log.Printf("%s RemoveRelayTag (old): %v", c.LogPrefix, err)
+		}
+	}
+	return nil
 }

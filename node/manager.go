@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
 	C "github.com/sagernet/sing/common"
@@ -20,6 +21,17 @@ import (
 	"github.com/xmplusdev/xmray/core/dispatcher"
 )
 
+type relayRule struct {
+	tag string
+	cfg *router.Config
+}
+
+type relayRuleSet struct {
+	mainTag string
+	subs    []api.SubscriptionInfo 
+	tags    []string               
+}
+
 type Manager struct {
 	server     *core.Instance
 	ibm        inbound.Manager
@@ -27,6 +39,12 @@ type Manager struct {
 	router     *router.Router
 	dispatcher *dispatcher.LimitingDispatcher
 	client     api.API
+	blockMu   sync.Mutex
+	blockTags map[string][]string
+	routeMu    sync.Mutex             
+	relayRules map[string][]relayRule 
+	routeGen int
+	relays   map[string]*relayRuleSet // by relayTag
 }
 
 func NewManager(server *core.Instance, d *dispatcher.LimitingDispatcher, client api.API) *Manager {
@@ -37,6 +55,9 @@ func NewManager(server *core.Instance, d *dispatcher.LimitingDispatcher, client 
 		router:     server.GetFeature(routing.RouterType()).(*router.Router),
 		dispatcher: d,
 		client:     client,
+		blockTags: make(map[string][]string),
+		relayRules: make(map[string][]relayRule),
+		relays: make(map[string]*relayRuleSet),
 	}
 }
 
@@ -64,7 +85,7 @@ func (m *Manager) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 	return m.dispatcher.GetOnlineIPs(tag)
 }
 
-func (m *Manager) AddTag(nodeInfo *api.NodeInfo, tag string, config *Config, pusher func(string, any) error) error {
+func (m *Manager) AddTag(nodeInfo *api.NodeInfo, rules []api.BlockingRule, tag string, config *Config, pusher func(string, any) error) error {
 	inboundConfig, err := InboundBuilder(config, nodeInfo, tag, pusher, m.client)
 	if err != nil {
 		return fmt.Errorf("failed to build inbound config: %w", err)
@@ -81,14 +102,8 @@ func (m *Manager) AddTag(nodeInfo *api.NodeInfo, tag string, config *Config, pus
 		return fmt.Errorf("failed to add outbound: %w", err)
 	}
 
-	if nodeInfo.RelayType == 0 || nodeInfo.RelayNodeID == 0 {
-		routerConfig, err := DefaultRouterBuilder(tag)
-		if err != nil {
-			return err
-		}
-		if err := m.addRouterRule(routerConfig, true); err != nil {
-			return err
-		}
+	if err := m.AddBlackHoleRuleTag(rules, tag); err != nil {
+		return fmt.Errorf("failed to add blackhole rule: %w", err)
 	}
 
 	return nil
@@ -101,11 +116,103 @@ func (m *Manager) RemoveTag(tag string) error {
 	if err := m.removeOutbound(tag); err != nil {
 		return fmt.Errorf("failed to remove outbound: %w", err)
 	}
-	defaultRuleTag := fmt.Sprintf("%s_default", tag)
-	return m.removeRouterRule(defaultRuleTag)
+	return nil
+}
+
+func (m *Manager) RemoveRelayTag(tag string, subscriptionInfo *[]api.SubscriptionInfo) error {
+	for _, subscription := range *subscriptionInfo {
+		outboundTag := fmt.Sprintf("%s_%d", tag, subscription.Id)
+		if err := m.removeOutbound(outboundTag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func blockRuleTag(tag string, gen, id, index int) string {
+	if id <= 0 {
+		id = index
+	}
+	return fmt.Sprintf("%s_blackhole_g%d_%d", tag, gen, id)
+}
+
+func relayRuleTag(relayTag string, gen, subID int) string {
+	return fmt.Sprintf("%s_g%d_%d", relayTag, gen, subID)
+}
+
+func buildBlock(rules []api.BlockingRule, tag string, gen int) (*router.Config, []string, error) {
+	if len(rules) == 0 {
+		return nil, nil, nil
+	}
+	cfg, err := BlackHoleRouterBuilder(rules, tag, gen)
+	if err != nil {
+		return nil, nil, err
+	}
+	tags := make([]string, len(rules))
+	for i, r := range rules {
+		tags[i] = blockRuleTag(tag, gen, r.ID, i)
+	}
+	return cfg, tags, nil
+}
+
+func (m *Manager) removeRulesByTag(tags []string) error {
+	var firstErr error
+	for _, t := range tags {
+		if err := m.removeRouterRule(t); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+func (m *Manager) AddBlackHoleRuleTag(rules []api.BlockingRule, tag string) error {
+	blackholeConfig, err := BlackholeOutboundBuilder(tag)
+	if err != nil {
+		return fmt.Errorf("failed to build blackhole outbound: %w", err)
+	}
+	if err := m.addOutbound(blackholeConfig); err != nil {
+		return fmt.Errorf("failed to add blackhole outbound: %w", err)
+	}
+
+	m.routeMu.Lock()
+	defer m.routeMu.Unlock()
+	m.routeGen++
+	cfg, tags, err := buildBlock(rules, tag, m.routeGen)
+	if err != nil {
+		return err
+	}
+	if cfg != nil {
+		if err := m.addRouterRule(cfg, true); err != nil {
+			return err
+		}
+	}
+	m.blockMu.Lock()
+	m.blockTags[tag] = tags
+	m.blockMu.Unlock()
+	return nil
+}
+
+func (m *Manager) RemoveBlockingRules(tag string) error {
+	m.blockMu.Lock()
+	tags := m.blockTags[tag]
+	delete(m.blockTags, tag)
+	m.blockMu.Unlock()
+
+	firstErr := m.removeRulesByTag(tags)
+	if err := m.removeOutbound(fmt.Sprintf("%s_blackhole", tag)); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }
 
 func (m *Manager) AddRelayTag(relayNodeInfo *api.RelayNodeInfo, relayTag string, mainTag string, subscriptionInfo *[]api.SubscriptionInfo) error {
+	m.routeMu.Lock()
+	m.routeGen++
+	gen := m.routeGen
+	set := &relayRuleSet{mainTag: mainTag}
+	m.relays[relayTag] = set
+	m.routeMu.Unlock()
+
 	for _, subscription := range *subscriptionInfo {
 		var key string
 		if C.Contains(shadowaead_2022.List, strings.ToLower(relayNodeInfo.Cipher)) {
@@ -126,59 +233,89 @@ func (m *Manager) AddRelayTag(relayNodeInfo *api.RelayNodeInfo, relayTag string,
 			return fmt.Errorf("failed to add relay outbound for UID %d: %w", subscription.Id, err)
 		}
 
-		routerConfig, err := RelayRouterBuilder(mainTag, relayTag, &subscription)
+		ruleTag := relayRuleTag(relayTag, gen, subscription.Id)
+		routerConfig, err := RelayRouterBuilder(mainTag, relayTag, &subscription, ruleTag)
 		if err != nil {
 			return fmt.Errorf("failed to build router for UID %d: %w", subscription.Id, err)
 		}
 		if err := m.addRouterRule(routerConfig, true); err != nil {
 			return fmt.Errorf("failed to add router rule for UID %d: %w", subscription.Id, err)
 		}
+
+		m.routeMu.Lock()
+		set.subs = append(set.subs, subscription)
+		set.tags = append(set.tags, ruleTag)
+		m.routeMu.Unlock()
 	}
 	return nil
 }
 
-func (m *Manager) RemoveRelayTag(tag string, subscriptionInfo *[]api.SubscriptionInfo) error {
-	for _, subscription := range *subscriptionInfo {
-		outboundTag := fmt.Sprintf("%s_%d", tag, subscription.Id)
-		if err := m.removeOutbound(outboundTag); err != nil {
-			return err
-		}
+func (m *Manager) RemoveRelayRules(tag string, _ *[]api.SubscriptionInfo) error {
+	m.routeMu.Lock()
+	var tags []string
+	if set := m.relays[tag]; set != nil {
+		tags = append(tags, set.tags...)
 	}
-	return nil
+	delete(m.relays, tag)
+	m.routeMu.Unlock()
+	return m.removeRulesByTag(tags)
 }
 
-func (m *Manager) RemoveRelayRules(tag string, subscriptionInfo *[]api.SubscriptionInfo) error {
-	for _, subscription := range *subscriptionInfo {
-		ruleTag := fmt.Sprintf("%s_%d", tag, subscription.Id)
-		if err := m.removeRouterRule(ruleTag); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+func (m *Manager) ReplaceBlockRules(tag string, rules []api.BlockingRule, relayTag string) error {
+	m.routeMu.Lock()
+	defer m.routeMu.Unlock()
 
-func (m *Manager) RemoveBlockingRules(tag string) error {
-	ruleTag := fmt.Sprintf("%s_blackhole", tag)
-	if err := m.removeRouterRule(ruleTag); err != nil {
-		return err
-	}
-	return m.removeOutbound(ruleTag)
-}
+	m.routeGen++
+	gen := m.routeGen
 
-func (m *Manager) AddBlackHoleRuleTag(nodeInfo *api.NodeInfo, tag string) error {
-	blackholeConfig, err := BlackholeOutboundBuilder(tag)
-	if err != nil {
-		return fmt.Errorf("failed to build blackhole outbound: %w", err)
-	}
-	if err := m.addOutbound(blackholeConfig); err != nil {
-		return fmt.Errorf("failed to add blackhole outbound: %w", err)
-	}
-
-	routerConfig, err := BlackHoleRouterBuilder(nodeInfo, tag)
+	blockCfg, newBlockTags, err := buildBlock(rules, tag, gen)
 	if err != nil {
 		return err
 	}
-	return m.addRouterRule(routerConfig, true)
+	set := m.relays[relayTag]
+	var relayCfgs []*router.Config
+	var newRelayTags []string
+	if set != nil {
+		for i := range set.subs {
+			ruleTag := relayRuleTag(relayTag, gen, set.subs[i].Id)
+			cfg, err := RelayRouterBuilder(set.mainTag, relayTag, &set.subs[i], ruleTag)
+			if err != nil {
+				return err
+			}
+			relayCfgs = append(relayCfgs, cfg)
+			newRelayTags = append(newRelayTags, ruleTag)
+		}
+	}
+
+	if blockCfg != nil {
+		if err := m.addRouterRule(blockCfg, true); err != nil {
+			return fmt.Errorf("add block rules: %w", err)
+		}
+	}
+	for i, cfg := range relayCfgs {
+		if err := m.addRouterRule(cfg, true); err != nil {
+			_ = m.removeRulesByTag(newBlockTags)
+			_ = m.removeRulesByTag(newRelayTags[:i])
+			return fmt.Errorf("add relay rule: %w", err)
+		}
+	}
+
+	m.blockMu.Lock()
+	oldBlockTags := m.blockTags[tag]
+	m.blockTags[tag] = newBlockTags
+	m.blockMu.Unlock()
+
+	var oldRelayTags []string
+	if set != nil {
+		oldRelayTags = set.tags
+		set.tags = newRelayTags
+	}
+
+	firstErr := m.removeRulesByTag(oldRelayTags)
+	if err := m.removeRulesByTag(oldBlockTags); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }
 
 func (m *Manager) removeInbound(tag string) error {
@@ -221,8 +358,6 @@ func (m *Manager) removeRouterRule(tag string) error {
 	return m.router.RemoveRule(tag)
 }
 
-// CheckShadowsocksPassword validates and derives the SS2022 user key.
-// Exported so that subscription/builders.go can call it instead of duplicating.
 func CheckShadowsocksPassword(password string, method string) (string, error) {
 	if len(password) < 16 {
 		return "", fmt.Errorf("shadowsocks2022 key must be at least 16 characters")

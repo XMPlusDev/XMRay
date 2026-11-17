@@ -194,22 +194,6 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 		nodeInfo.SocketSettings = sock
 	}
 
-	rule, err := s.Rules.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-
-	ruleData, err := simplejson.NewJson(rule)
-	if err != nil {
-		return nil, err
-	}
-
-	blockingRules, err := parseBlockingRules(ruleData)
-	if err != nil {
-		return nil, fmt.Errorf("parse rules: %w", err)
-	}
-	nodeInfo.BlockingRules = blockingRules
-
 	if nodeInfo.NodeType == "vless" || nodeInfo.NodeType == "trojan" {
 		nodeInfo.FallbackConfigs = parseFallbackConfigs(transportData)
 	}
@@ -828,10 +812,40 @@ func parseFinalRules(securityData *simplejson.Json) []FinalRuleSettings {
 	return rules
 }
 
-// parseBlockingRules reads the panel rule list and keeps the block rules.
-// It returns an error on an unexpected shape (for example an old panel that
-// still sends the grouped object), so a node never starts without its rules.
-// parseBlockingRules reads the panel rule list and keeps the block rules.
+func (c *Client) GetBlockRules() ([]BlockingRule, error) {
+	res, err := c.client.R().
+		SetBody(map[string]string{"key": c.Key, "core": "xray"}).
+		ForceContentType("application/json").
+		SetPathParam("nodeId", strconv.Itoa(c.NodeID)).
+		SetHeader("If-None-Match", c.eTags["rule"]).
+		Post("/api/server/rules/{nodeId}")
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 304 {
+		return nil, errors.New(RuleNotModified)
+	}
+
+	response, err := c.checkResponse(res, err)
+	if err != nil {
+		return nil, err
+	}
+
+	list, ok := response.CheckGet("ruleSettings")
+	if !ok {
+		return nil, fmt.Errorf("rules response has no ruleSettings, is the panel up to date?")
+	}
+	rules, err := parseBlockingRules(list)
+	if err != nil {
+		return nil, fmt.Errorf("parse rules: %w", err)
+	}
+
+	if etag := res.Header().Get("Etag"); etag != "" {
+		c.eTags["rule"] = etag
+	}
+	return rules, nil
+}
+
 func parseBlockingRules(ruleData *simplejson.Json) ([]BlockingRule, error) {
 	arr, err := ruleData.Array()
 	if err != nil {
@@ -860,7 +874,6 @@ func parseBlockingRules(ruleData *simplejson.Json) ([]BlockingRule, error) {
 			return nil, fmt.Errorf("rule %d: %w", r.ID, err)
 		}
 
-		// "0" used to mean "no port condition", keep ignoring it.
 		for _, p := range csvList(v, "port") {
 			if p != "0" {
 				r.Port = append(r.Port, p)
@@ -872,7 +885,6 @@ func parseBlockingRules(ruleData *simplejson.Json) ([]BlockingRule, error) {
 			}
 		}
 
-		// A rule with no condition would block everything on the node, skip it.
 		if len(r.Domain)+len(r.IP)+len(r.Protocol)+len(r.Network)+len(r.Port) == 0 {
 			continue
 		}
