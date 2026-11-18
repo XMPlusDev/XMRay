@@ -831,9 +831,9 @@ func (c *Client) GetBlockRules() ([]BlockingRule, error) {
 		return nil, err
 	}
 
-	list, ok := response.CheckGet("ruleSettings")
+	list, ok := response.CheckGet("blockingRule")
 	if !ok {
-		return nil, fmt.Errorf("rules response has no ruleSettings, is the panel up to date?")
+		return []BlockingRule{}, nil
 	}
 	rules, err := parseBlockingRules(list)
 	if err != nil {
