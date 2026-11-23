@@ -25,7 +25,7 @@ require (
 	golang.org/x/crypto v0.59.0
 	golang.org/x/net v0.62.0
 	golang.org/x/time v0.16.0
-	lukechampine.com/blake3 v1.4.1
+	lukechampine.com/blake3 v1.5.1
 )
 
 require (
